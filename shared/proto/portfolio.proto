@@ -1,0 +1,45 @@
+syntax = "proto3";
+package stratos.common;
+
+message Portfolio {
+  string id = 1;
+  repeated Asset assets = 2;
+  repeated double weights = 3;
+  double expected_return = 4;
+  double expected_drawdown = 5;
+  double risk_score = 6;
+}
+
+message Asset {
+  string ticker = 1;
+  string asset_class = 2;  // equity, bond, crypto, commodity, fx
+  double current_price = 3;
+  double weight = 4;
+}
+
+message AllocationRequest {
+  repeated Asset universe = 1;
+  double target_return = 2;
+  double max_risk = 3;
+  string strategy = 4;  // mean_variance, black_litterman, risk_parity
+  map<string, double> constraints = 5;
+}
+
+message AllocationResponse {
+  Portfolio portfolio = 1;
+  double sharpe_ratio = 2;
+  ConfidenceBand confidence = 3;
+  repeated ScenarioOutcome scenarios = 4;
+}
+
+message ConfidenceBand {
+  double score = 1;        // 0.0 to 1.0
+  string calibration = 2;  // high, medium, low
+}
+
+message ScenarioOutcome {
+  string label = 1;
+  double probability = 2;
+  double portfolio_return = 3;
+  double max_drawdown = 4;
+}

@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Python Services ──
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [data-fabric, ml, nlp, orchestrator]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[${{ matrix.service }}][dev]" 2>/dev/null || pip install ruff mypy
+        working-directory: ${{ matrix.service }}
+      - name: Lint
+        run: ruff check .
+        working-directory: ${{ matrix.service }}
+      - name: Type Check
+        run: mypy src/ --ignore-missing-imports
+        working-directory: ${{ matrix.service }}
+
+  # ── Rust Engines ──
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check
+        run: cargo check --workspace
+        working-directory: engines/rust
+      - name: Test
+        run: cargo test --workspace
+        working-directory: engines/rust
+      - name: Clippy
+        run: cargo clippy --workspace -- -D warnings
+        working-directory: engines/rust
+
+  # ── Java Engines ──
+  java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Build
+        run: mvn -B compile
+        working-directory: engines/java
+
+  # ── Frontend ──
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install
+        run: npm ci
+        working-directory: frontend
+      - name: Lint
+        run: npm run lint
+        working-directory: frontend
+      - name: Build
+        run: npm run build
+        working-directory: frontend

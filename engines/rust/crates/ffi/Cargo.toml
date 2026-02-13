@@ -1,0 +1,10 @@
+[package]
+name = "stratos-ffi"
+version = "0.1.0"
+edition.workspace = true
+[dependencies]
+stratos-core = { path = "../core" }
+pyo3.workspace = true
+[lib]
+name = "stratos_ffi"
+crate-type = ["cdylib"]

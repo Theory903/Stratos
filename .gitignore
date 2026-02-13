@@ -1,0 +1,51 @@
+# ── Dependencies ──
+node_modules/
+.pnpm-store/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+target/
+
+# ── Build ──
+dist/
+build/
+*.egg-info/
+.next/
+out/
+
+# ── IDE ──
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# ── Environment ──
+.env
+.env.local
+.env.*.local
+
+# ── Testing ──
+coverage/
+htmlcov/
+.pytest_cache/
+.coverage
+
+# ── ML Artifacts ──
+ml/models/
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.joblib
+
+# ── Infrastructure ──
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# ── Logs ──
+*.log
+logs/

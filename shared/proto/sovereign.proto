@@ -1,0 +1,35 @@
+syntax = "proto3";
+package stratos.common;
+
+message SovereignAnalysisRequest {
+  string country_code = 1;
+  repeated string scenarios = 2;  // debt_stress, currency_shock, trade_disruption
+}
+
+message SovereignAnalysisResponse {
+  SovereignProfile profile = 1;
+  repeated ScenarioResult scenarios = 2;
+  ConfidenceBand confidence = 3;
+}
+
+message ScenarioResult {
+  string scenario_name = 1;
+  double probability = 2;
+  double impact_score = 3;
+  string description = 4;
+}
+
+// Re-use
+message SovereignProfile {
+  string country_code = 1;
+  double debt_gdp = 2;
+  double fx_reserves = 3;
+  double fiscal_deficit = 4;
+  double political_stability = 5;
+  double currency_volatility = 6;
+}
+
+message ConfidenceBand {
+  double score = 1;
+  string calibration = 2;
+}

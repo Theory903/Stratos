@@ -1,0 +1,33 @@
+syntax = "proto3";
+package stratos.common;
+
+// Shared value objects used across all services
+
+message WorldState {
+  double interest_rate = 1;
+  double inflation = 2;
+  double liquidity_index = 3;
+  double geopolitical_risk = 4;
+  double volatility_index = 5;
+  double commodity_index = 6;
+  string timestamp = 7;
+}
+
+message SovereignProfile {
+  string country_code = 1;
+  double debt_gdp = 2;
+  double fx_reserves = 3;
+  double fiscal_deficit = 4;
+  double political_stability = 5;
+  double currency_volatility = 6;
+}
+
+message CompanyProfile {
+  string ticker = 1;
+  string name = 2;
+  double earnings_quality = 3;
+  double leverage_ratio = 4;
+  double free_cash_flow_stability = 5;
+  double fraud_score = 6;
+  double moat_score = 7;
+}

@@ -1,0 +1,9 @@
+[package]
+name = "stratos-core"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+nalgebra.workspace = true

@@ -1,0 +1,102 @@
+version: "3.9"
+
+services:
+  # ── Infrastructure ──
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_DB: stratos
+      POSTGRES_USER: stratos
+      POSTGRES_PASSWORD: changeme
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stratos"]
+      interval: 5s
+      timeout: 3s
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    ports: ["9092:9092"]
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      CLUSTER_ID: stratos-local-cluster
+
+  minio:
+    image: minio/minio:latest
+    ports: ["9000:9000", "9001:9001"]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - miniodata:/data
+
+  # ── Application Services ──
+  data-fabric:
+    build:
+      context: .
+      dockerfile: infra/docker/data-fabric.Dockerfile
+    ports: ["8001:8001"]
+    env_file: .env
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  engines-java:
+    build:
+      context: .
+      dockerfile: infra/docker/engines-java.Dockerfile
+    ports: ["8002:8002"]
+    env_file: .env
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  ml:
+    build:
+      context: .
+      dockerfile: infra/docker/ml.Dockerfile
+    ports: ["8003:8003"]
+    env_file: .env
+
+  nlp:
+    build:
+      context: .
+      dockerfile: infra/docker/nlp.Dockerfile
+    ports: ["8004:8004"]
+    env_file: .env
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: infra/docker/orchestrator.Dockerfile
+    ports: ["8005:8005"]
+    env_file: .env
+    depends_on: [data-fabric, engines-java, ml, nlp]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/docker/frontend.Dockerfile
+    ports: ["3000:3000"]
+    env_file: .env
+    depends_on: [orchestrator]
+
+volumes:
+  pgdata:
+  miniodata:

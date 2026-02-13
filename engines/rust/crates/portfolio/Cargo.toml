@@ -1,0 +1,9 @@
+[package]
+name = "stratos-portfolio"
+version = "0.1.0"
+edition.workspace = true
+[dependencies]
+stratos-core = { path = "../core" }
+thiserror.workspace = true
+serde.workspace = true
+nalgebra.workspace = true

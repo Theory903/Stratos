@@ -1,0 +1,43 @@
+syntax = "proto3";
+package stratos.common;
+
+message CompanyAnalysisRequest {
+  string ticker = 1;
+  repeated string analyses = 2;  // earnings_quality, fraud_scan, dcf, moat
+}
+
+message CompanyAnalysisResponse {
+  CompanyProfile profile = 1;
+  DCFResult dcf = 2;
+  FraudResult fraud = 3;
+  ConfidenceBand confidence = 4;
+}
+
+message DCFResult {
+  double intrinsic_value = 1;
+  double upside_pct = 2;
+  double wacc = 3;
+  double terminal_growth = 4;
+}
+
+message FraudResult {
+  double fraud_probability = 1;
+  repeated string red_flags = 2;
+  string severity = 3;  // low, medium, high, critical
+}
+
+// Re-use from other protos
+message CompanyProfile {
+  string ticker = 1;
+  string name = 2;
+  double earnings_quality = 3;
+  double leverage_ratio = 4;
+  double free_cash_flow_stability = 5;
+  double fraud_score = 6;
+  double moat_score = 7;
+}
+
+message ConfidenceBand {
+  double score = 1;
+  string calibration = 2;
+}
