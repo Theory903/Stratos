@@ -7,7 +7,7 @@ from functools import lru_cache
 from stratos_orchestrator.adapters.llm.ollama import OllamaProvider
 from stratos_orchestrator.adapters.llm.openai import OpenAIProvider
 from stratos_orchestrator.adapters.tools.registry import ToolRegistry, get_registry
-from stratos_orchestrator.application import OrchestrateUseCase, V2OrchestrateUseCase, V2StreamOrchestrateUseCase
+from stratos_orchestrator.application import LangChainAgentRuntime, OrchestrateUseCase, V2OrchestrateUseCase, V2StreamOrchestrateUseCase
 from stratos_orchestrator.application.execute_tool import ExecuteToolUseCase
 from stratos_orchestrator.application.generate_memo import GenerateMemoUseCase
 from stratos_orchestrator.application.plan_tasks import PlanTasksUseCase
@@ -27,6 +27,18 @@ def get_llm_provider() -> LLMProvider:
 
     if settings.llm_provider == "ollama":
         return OllamaProvider(model=settings.ollama_model)
+    if settings.llm_provider == "nvidia":
+        from stratos_orchestrator.adapters.llm.nvidia import NVIDIAProvider
+
+        return NVIDIAProvider(
+            model=settings.nvidia_model,
+            api_key=settings.nvidia_api_key,
+            temperature=settings.nvidia_temperature,
+            top_p=settings.nvidia_top_p,
+            max_tokens=settings.nvidia_max_tokens,
+            reasoning_budget=settings.nvidia_reasoning_budget,
+            enable_thinking=settings.nvidia_enable_thinking,
+        )
     if settings.llm_provider == "groq":
         return OpenAIProvider(
             model=settings.groq_model,
@@ -96,4 +108,12 @@ def get_v2_stream_orchestrate_use_case() -> V2StreamOrchestrateUseCase:
         memo_generator=get_generate_memo_use_case(),
         tools=tools,
         max_budget=settings.max_tool_budget,
+    )
+
+
+@lru_cache
+def get_langchain_agent_runtime() -> LangChainAgentRuntime:
+    return LangChainAgentRuntime(
+        settings=get_settings(),
+        tools=get_tool_registry_v2(),
     )

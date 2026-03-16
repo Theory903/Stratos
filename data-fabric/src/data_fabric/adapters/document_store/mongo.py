@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from data_fabric.domain.value_objects import CollectionRecord
+from data_fabric.domain.value_objects import CollectionRecord, SnapshotRecord
 
 try:
     from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -230,6 +230,174 @@ class MongoDocumentStore:
             provider_set=record.provider_set,
         )
 
+    async def save_event_feed(
+        self,
+        *,
+        scope: str,
+        items: list[dict[str, Any]],
+        provider_set: tuple[str, ...] = (),
+        feature_version: str = "event-feed-v1",
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        await self._db.event_feeds.insert_one(
+            {
+                "scope": scope.lower(),
+                "items": items,
+                "as_of": now,
+                "computed_at": now,
+                "feature_version": feature_version,
+                "provider_set": list(provider_set),
+            }
+        )
+
+    async def get_event_feed(self, scope: str) -> CollectionRecord[dict[str, Any]] | None:
+        doc = await self._db.event_feeds.find_one(
+            {"scope": scope.lower()},
+            sort=[("computed_at", -1)],
+        )
+        return self._to_collection_record(doc)
+
+    async def save_event_clusters(
+        self,
+        *,
+        scope: str,
+        items: list[dict[str, Any]],
+        provider_set: tuple[str, ...] = (),
+        feature_version: str = "event-clusters-v1",
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        await self._db.event_clusters.insert_one(
+            {
+                "scope": scope.lower(),
+                "items": items,
+                "as_of": now,
+                "computed_at": now,
+                "feature_version": feature_version,
+                "provider_set": list(provider_set),
+            }
+        )
+
+    async def get_event_clusters(self, scope: str) -> CollectionRecord[dict[str, Any]] | None:
+        doc = await self._db.event_clusters.find_one(
+            {"scope": scope.lower()},
+            sort=[("computed_at", -1)],
+        )
+        return self._to_collection_record(doc)
+
+    async def save_event_pulse(
+        self,
+        *,
+        scope: str,
+        data: dict[str, Any],
+        provider_set: tuple[str, ...] = (),
+        feature_version: str = "event-pulse-v1",
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        await self._db.event_pulses.insert_one(
+            {
+                "scope": scope.lower(),
+                "data": data,
+                "as_of": now,
+                "computed_at": now,
+                "feature_version": feature_version,
+                "provider_set": list(provider_set),
+            }
+        )
+
+    async def get_event_pulse(self, scope: str) -> SnapshotRecord[dict[str, Any]] | None:
+        doc = await self._db.event_pulses.find_one(
+            {"scope": scope.lower()},
+            sort=[("computed_at", -1)],
+        )
+        return self._to_snapshot_record(doc)
+
+    async def search_event_feed(
+        self,
+        scope: str,
+        query: str,
+    ) -> CollectionRecord[dict[str, Any]] | None:
+        record = await self.get_event_feed(scope)
+        if record is None:
+            return None
+        needle = query.lower().strip()
+        if not needle:
+            return record
+        matches = tuple(
+            item
+            for item in record.items
+            if needle in str(item.get("title", "")).lower()
+            or needle in str(item.get("summary", "")).lower()
+            or needle in str(item.get("region", "")).lower()
+            or needle in " ".join(item.get("entities", [])).lower()
+        )
+        return CollectionRecord(
+            items=matches,
+            as_of=record.as_of,
+            computed_at=record.computed_at,
+            feature_version=record.feature_version,
+            provider_set=record.provider_set,
+        )
+
+    async def save_portfolio_snapshot(
+        self,
+        *,
+        name: str,
+        data: dict[str, Any],
+        provider_set: tuple[str, ...] = ("manual",),
+        feature_version: str = "portfolio-v1",
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        await self._db.portfolio_snapshots.insert_one(
+            {
+                "name": name,
+                "data": data,
+                "as_of": now,
+                "computed_at": now,
+                "feature_version": feature_version,
+                "provider_set": list(provider_set),
+            }
+        )
+
+    async def get_portfolio_snapshot(self, name: str = "primary") -> SnapshotRecord[dict[str, Any]] | None:
+        doc = await self._db.portfolio_snapshots.find_one(
+            {"name": name},
+            sort=[("computed_at", -1)],
+        )
+        return self._to_snapshot_record(doc)
+
+    async def append_portfolio_decision(
+        self,
+        *,
+        name: str,
+        decision: dict[str, Any],
+        feature_version: str = "portfolio-decision-log-v1",
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        await self._db.portfolio_decisions.insert_one(
+            {
+                "name": name,
+                "decision": decision,
+                "computed_at": now,
+                "as_of": now,
+                "feature_version": feature_version,
+                "provider_set": ["internal"],
+            }
+        )
+
+    async def get_portfolio_decision_log(self, name: str = "primary") -> CollectionRecord[dict[str, Any]] | None:
+        cursor = self._db.portfolio_decisions.find({"name": name}).sort("computed_at", -1).limit(50)
+        docs = await cursor.to_list(length=50)
+        if not docs:
+            return None
+        latest = docs[0]
+        return CollectionRecord(
+            items=tuple(doc["decision"] for doc in docs),
+            as_of=latest["as_of"],
+            computed_at=latest["computed_at"],
+            feature_version=latest.get("feature_version"),
+            provider_set=tuple(latest.get("provider_set", [])),
+        )
+
     @staticmethod
     def _to_collection_record(
         doc: dict[str, Any] | None,
@@ -240,6 +408,21 @@ class MongoDocumentStore:
             items=tuple(doc.get("items", [])),
             as_of=doc["as_of"],
             computed_at=doc["computed_at"],
+            feature_version=doc.get("feature_version"),
+            provider_set=tuple(doc.get("provider_set", [])),
+        )
+
+    @staticmethod
+    def _to_snapshot_record(
+        doc: dict[str, Any] | None,
+    ) -> SnapshotRecord[dict[str, Any]] | None:
+        if doc is None:
+            return None
+        return SnapshotRecord(
+            data=doc.get("data", {}),
+            as_of=doc["as_of"],
+            computed_at=doc["computed_at"],
+            stored_at=doc.get("as_of", doc["computed_at"]),
             feature_version=doc.get("feature_version"),
             provider_set=tuple(doc.get("provider_set", [])),
         )

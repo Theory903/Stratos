@@ -69,15 +69,21 @@ class ToolRegistry:
 def get_registry(data_fabric_url: str | None = None) -> ToolRegistry:
     """Factory to get fully populated registry."""
     from stratos_orchestrator.adapters.tools import (
-        macro_tool,
-        industry_tool,
+        calculator_tool,
         company_tool,
-        portfolio_tool,
-        policy_tool,
-        tax_tool,
+        events_tool,
         geopolitics_tool,
         fraud_tool,
+        history_tool,
+        industry_tool,
+        macro_tool,
+        policy_tool,
+        portfolio_state_tool,
+        portfolio_tool,
         regime_tool,
+        tax_tool,
+        web_search_tool,
+        webpage_read_tool,
     )
     from stratos_orchestrator.config import Settings
 
@@ -88,6 +94,9 @@ def get_registry(data_fabric_url: str | None = None) -> ToolRegistry:
     # Data Fabric tools (Macro, Company)
     registry.register(macro_tool.MacroTool(data_fabric_base))
     registry.register(company_tool.CompanyTool(data_fabric_base))
+    registry.register(events_tool.EventsTool(data_fabric_base))
+    registry.register(history_tool.HistoryTool(data_fabric_base))
+    registry.register(portfolio_state_tool.PortfolioStateTool(data_fabric_base))
 
     # ML tools (Fraud, Regime)
     registry.register(fraud_tool.FraudTool(settings.ml_service_url))
@@ -105,5 +114,8 @@ def get_registry(data_fabric_url: str | None = None) -> ToolRegistry:
     # Portfolio/Tax are mocks/self-contained for now
     registry.register(portfolio_tool.PortfolioTool(data_fabric_base))
     registry.register(tax_tool.TaxTool(data_fabric_base))
+    registry.register(calculator_tool.CalculatorTool())
+    registry.register(web_search_tool.WebSearchTool())
+    registry.register(webpage_read_tool.WebpageReadTool())
 
     return registry

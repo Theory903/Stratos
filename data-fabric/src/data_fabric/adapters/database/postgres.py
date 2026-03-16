@@ -275,6 +275,142 @@ class PostgresDataStore:
                 provider_set=_deserialize_provider_set(model.provider_set),
             )
 
+    async def list_world_state_snapshots(self, *, limit: int = 24) -> list[SnapshotRecord[WorldState]]:
+        async with self._session_factory() as session:
+            stmt = select(WorldStateSnapshotModel).order_by(
+                desc(WorldStateSnapshotModel.computed_at),
+                desc(WorldStateSnapshotModel.stored_at),
+            )
+            result = await session.execute(stmt.limit(limit))
+            models = result.scalars().all()
+            return [
+                SnapshotRecord(
+                    data=WorldState(
+                        interest_rate=model.interest_rate,
+                        inflation=model.inflation,
+                        liquidity_index=model.liquidity_index,
+                        geopolitical_risk=model.geopolitical_risk,
+                        volatility_index=model.volatility_index,
+                        commodity_index=model.commodity_index,
+                        timestamp=model.timestamp,
+                        stored_at=model.stored_at,
+                    ),
+                    as_of=model.computed_at,
+                    computed_at=model.computed_at,
+                    stored_at=model.stored_at,
+                    feature_version=model.feature_version,
+                    source_window_start=model.source_window_start,
+                    source_window_end=model.source_window_end,
+                    provider_set=_deserialize_provider_set(model.provider_set),
+                )
+                for model in models
+            ]
+
+    async def list_company_snapshots(
+        self,
+        ticker: str,
+        *,
+        limit: int = 12,
+    ) -> list[SnapshotRecord[CompanyProfile]]:
+        async with self._session_factory() as session:
+            stmt = (
+                select(CompanyFeatureSnapshotModel)
+                .where(CompanyFeatureSnapshotModel.ticker == ticker.upper())
+                .order_by(
+                    desc(CompanyFeatureSnapshotModel.computed_at),
+                    desc(CompanyFeatureSnapshotModel.stored_at),
+                )
+            )
+            result = await session.execute(stmt.limit(limit))
+            models = result.scalars().all()
+            return [
+                SnapshotRecord(
+                    data=CompanyProfile(
+                        ticker=model.ticker,
+                        name=model.name,
+                        earnings_quality=model.earnings_quality,
+                        leverage_ratio=model.leverage_ratio,
+                        free_cash_flow_stability=model.free_cash_flow_stability,
+                        fraud_score=model.fraud_score,
+                        moat_score=model.moat_score,
+                        stored_at=model.stored_at,
+                    ),
+                    as_of=model.computed_at,
+                    computed_at=model.computed_at,
+                    stored_at=model.stored_at,
+                    feature_version=model.feature_version,
+                    source_window_start=model.source_window_start,
+                    source_window_end=model.source_window_end,
+                    provider_set=_deserialize_provider_set(model.provider_set),
+                )
+                for model in models
+            ]
+
+    async def list_country_snapshots(
+        self,
+        country_code: str,
+        *,
+        limit: int = 12,
+    ) -> list[SnapshotRecord[CountryProfile]]:
+        async with self._session_factory() as session:
+            stmt = (
+                select(CountryFeatureSnapshotModel)
+                .where(CountryFeatureSnapshotModel.country_code == country_code.upper())
+                .order_by(
+                    desc(CountryFeatureSnapshotModel.computed_at),
+                    desc(CountryFeatureSnapshotModel.stored_at),
+                )
+            )
+            result = await session.execute(stmt.limit(limit))
+            models = result.scalars().all()
+            return [
+                SnapshotRecord(
+                    data=CountryProfile(
+                        country_code=model.country_code,
+                        debt_gdp=model.debt_gdp,
+                        fx_reserves=model.fx_reserves,
+                        fiscal_deficit=model.fiscal_deficit,
+                        political_stability=model.political_stability,
+                        currency_volatility=model.currency_volatility,
+                        stored_at=model.stored_at,
+                    ),
+                    as_of=model.computed_at,
+                    computed_at=model.computed_at,
+                    stored_at=model.stored_at,
+                    feature_version=model.feature_version,
+                    source_window_start=model.source_window_start,
+                    source_window_end=model.source_window_end,
+                    provider_set=_deserialize_provider_set(model.provider_set),
+                )
+                for model in models
+            ]
+
+    async def list_market_regime_snapshots(self, *, limit: int = 24) -> list[SnapshotRecord[dict]]:
+        async with self._session_factory() as session:
+            stmt = select(MarketRegimeSnapshotModel).order_by(
+                desc(MarketRegimeSnapshotModel.computed_at),
+                desc(MarketRegimeSnapshotModel.stored_at),
+            )
+            result = await session.execute(stmt.limit(limit))
+            models = result.scalars().all()
+            return [
+                SnapshotRecord(
+                    data={
+                        "regime_label": model.regime_label,
+                        "confidence": model.confidence,
+                        "factor_summary": model.factor_summary,
+                    },
+                    as_of=model.computed_at,
+                    computed_at=model.computed_at,
+                    stored_at=model.stored_at,
+                    feature_version=model.feature_version,
+                    source_window_start=model.source_window_start,
+                    source_window_end=model.source_window_end,
+                    provider_set=_deserialize_provider_set(model.provider_set),
+                )
+                for model in models
+            ]
+
     async def save_company(self, profile: CompanyProfile) -> None:
         await self.save_company_snapshot(profile, feature_version="manual-company", provider_set=("manual",))
 

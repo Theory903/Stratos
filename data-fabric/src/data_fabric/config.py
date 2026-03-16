@@ -12,21 +12,56 @@ class Settings(BaseSettings):
     model_config = {"env_prefix": "DF_", "env_file": ".env"}
 
     # Database
-    postgres_url: str = "postgresql+asyncpg://stratos:changeme@localhost:5432/stratos"
-    mongo_url: str = "mongodb://localhost:27017"
-    mongo_database: str = "stratos"
+    postgres_url: str = Field(
+        default="postgresql+asyncpg://stratos:password@localhost:5432/stratos",
+        validation_alias=AliasChoices("DF_POSTGRES_URL", "POSTGRES_URL"),
+    )
+    mongo_url: str = Field(
+        default="mongodb://localhost:27017",
+        validation_alias=AliasChoices("DF_MONGO_URL", "MONGO_URL"),
+    )
+    mongo_database: str = Field(
+        default="stratos",
+        validation_alias=AliasChoices("DF_MONGO_DATABASE", "MONGO_DATABASE"),
+    )
 
     # Redis
-    redis_url: str = "redis://localhost:6379"
+    redis_url: str = Field(
+        default="redis://localhost:6379",
+        validation_alias=AliasChoices("DF_REDIS_URL", "REDIS_URL"),
+    )
 
     # Kafka
-    kafka_brokers: str = "localhost:9092"
+    kafka_brokers: str = Field(
+        default="localhost:9092",
+        validation_alias=AliasChoices("DF_KAFKA_BROKERS", "KAFKA_BROKERS"),
+    )
 
     # Object Storage
-    s3_endpoint: str = "http://localhost:9000"
-    s3_access_key: str = "minioadmin"
-    s3_secret_key: str = "minioadmin"
-    s3_bucket: str = "stratos-data"
+    s3_endpoint: str = Field(
+        default="http://localhost:9000",
+        validation_alias=AliasChoices("DF_S3_ENDPOINT", "S3_ENDPOINT"),
+    )
+    s3_access_key: str = Field(
+        default="minioadmin",
+        validation_alias=AliasChoices("DF_S3_ACCESS_KEY", "S3_ACCESS_KEY"),
+    )
+    s3_secret_key: str = Field(
+        default="minioadmin",
+        validation_alias=AliasChoices("DF_S3_SECRET_KEY", "S3_SECRET_KEY"),
+    )
+    s3_bucket: str = Field(
+        default="stratos-data",
+        validation_alias=AliasChoices("DF_S3_BUCKET", "S3_BUCKET"),
+    )
+    qdrant_url: str = Field(
+        default="http://localhost:6333",
+        validation_alias=AliasChoices("DF_QDRANT_URL", "QDRANT_URL"),
+    )
+    keycloak_url: str = Field(
+        default="http://localhost:8080",
+        validation_alias=AliasChoices("DF_KEYCLOAK_URL", "KEYCLOAK_URL"),
+    )
 
     # External data sources
     polygon_api_key: str = Field(

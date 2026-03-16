@@ -18,16 +18,32 @@ from data_fabric.application import (
     LegacyQueryCompanyUseCase,
     LegacyQueryCountryUseCase,
     LegacyQueryWorldStateUseCase,
+    QueryAnomalyUseCase,
     QueryCompanyFilingsUseCase,
     QueryCompanyNewsUseCase,
     QueryCompanyUseCase,
+    QueryCompareEntityUseCase,
+    QueryCompareMetricUseCase,
     QueryCountryUseCase,
+    QueryDecisionQueueUseCase,
+    QueryEventClustersUseCase,
+    QueryEventPulseUseCase,
+    QueryEventsFeedUseCase,
     QueryMarketHistoryUseCase,
     QueryMarketRegimeUseCase,
+    QueryPortfolioDecisionLogUseCase,
+    QueryPortfolioExposureUseCase,
+    QueryPortfolioRiskUseCase,
+    QueryPortfolioUseCase,
     QueryPolicyEventsUseCase,
+    QuerySimilarRegimesUseCase,
     QueryWorldStateUseCase,
     RefreshRequestManager,
+    RunPortfolioRebalanceUseCase,
+    RunPortfolioScenarioUseCase,
     SearchPolicyUseCase,
+    SearchEventsUseCase,
+    UpsertPortfolioUseCase,
 )
 from data_fabric.config import Settings
 from data_fabric.domain.services.validator import DataValidator
@@ -177,6 +193,124 @@ def get_v2_market_regime_use_case(
     refreshes: RefreshRequestManager = Depends(get_refresh_manager),
 ) -> QueryMarketRegimeUseCase:
     return QueryMarketRegimeUseCase(store=store, refreshes=refreshes)
+
+
+def get_v2_events_feed_use_case(
+    store: PostgresDataStore = Depends(get_data_store),
+    documents: MongoDocumentStore = Depends(get_document_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QueryEventsFeedUseCase:
+    return QueryEventsFeedUseCase(store=store, documents=documents, refreshes=refreshes)
+
+
+def get_v2_events_search_use_case(
+    store: PostgresDataStore = Depends(get_data_store),
+    documents: MongoDocumentStore = Depends(get_document_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> SearchEventsUseCase:
+    return SearchEventsUseCase(store=store, documents=documents, refreshes=refreshes)
+
+
+def get_v2_event_clusters_use_case(
+    store: PostgresDataStore = Depends(get_data_store),
+    documents: MongoDocumentStore = Depends(get_document_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QueryEventClustersUseCase:
+    return QueryEventClustersUseCase(store=store, documents=documents, refreshes=refreshes)
+
+
+def get_v2_event_pulse_use_case(
+    store: PostgresDataStore = Depends(get_data_store),
+    documents: MongoDocumentStore = Depends(get_document_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QueryEventPulseUseCase:
+    return QueryEventPulseUseCase(store=store, documents=documents, refreshes=refreshes)
+
+
+def get_v2_compare_metric_use_case(
+    store: PostgresDataStore = Depends(get_data_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QueryCompareMetricUseCase:
+    return QueryCompareMetricUseCase(store=store, refreshes=refreshes)
+
+
+def get_v2_compare_entity_use_case(
+    store: PostgresDataStore = Depends(get_data_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QueryCompareEntityUseCase:
+    return QueryCompareEntityUseCase(store=store, refreshes=refreshes)
+
+
+def get_v2_similar_regimes_use_case(
+    store: PostgresDataStore = Depends(get_data_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QuerySimilarRegimesUseCase:
+    return QuerySimilarRegimesUseCase(store=store, refreshes=refreshes)
+
+
+def get_v2_anomaly_use_case(
+    store: PostgresDataStore = Depends(get_data_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QueryAnomalyUseCase:
+    return QueryAnomalyUseCase(store=store, refreshes=refreshes)
+
+
+def get_v2_portfolio_use_case(
+    documents: MongoDocumentStore = Depends(get_document_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QueryPortfolioUseCase:
+    return QueryPortfolioUseCase(documents=documents, refreshes=refreshes)
+
+
+def get_v2_upsert_portfolio_use_case(
+    documents: MongoDocumentStore = Depends(get_document_store),
+) -> UpsertPortfolioUseCase:
+    return UpsertPortfolioUseCase(documents=documents)
+
+
+def get_v2_portfolio_exposure_use_case(
+    documents: MongoDocumentStore = Depends(get_document_store),
+    store: PostgresDataStore = Depends(get_data_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QueryPortfolioExposureUseCase:
+    return QueryPortfolioExposureUseCase(documents=documents, store=store, refreshes=refreshes)
+
+
+def get_v2_portfolio_risk_use_case(
+    documents: MongoDocumentStore = Depends(get_document_store),
+    store: PostgresDataStore = Depends(get_data_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QueryPortfolioRiskUseCase:
+    return QueryPortfolioRiskUseCase(documents=documents, store=store, refreshes=refreshes)
+
+
+def get_v2_portfolio_scenario_use_case(
+    documents: MongoDocumentStore = Depends(get_document_store),
+    store: PostgresDataStore = Depends(get_data_store),
+) -> RunPortfolioScenarioUseCase:
+    return RunPortfolioScenarioUseCase(documents=documents, store=store)
+
+
+def get_v2_portfolio_rebalance_use_case(
+    documents: MongoDocumentStore = Depends(get_document_store),
+    store: PostgresDataStore = Depends(get_data_store),
+) -> RunPortfolioRebalanceUseCase:
+    return RunPortfolioRebalanceUseCase(documents=documents, store=store)
+
+
+def get_v2_portfolio_decision_log_use_case(
+    documents: MongoDocumentStore = Depends(get_document_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QueryPortfolioDecisionLogUseCase:
+    return QueryPortfolioDecisionLogUseCase(documents=documents, refreshes=refreshes)
+
+
+def get_v2_decision_queue_use_case(
+    documents: MongoDocumentStore = Depends(get_document_store),
+    store: PostgresDataStore = Depends(get_data_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QueryDecisionQueueUseCase:
+    return QueryDecisionQueueUseCase(documents=documents, store=store, refreshes=refreshes)
 
 
 def get_v2_ingest_use_case(

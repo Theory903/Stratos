@@ -10,6 +10,7 @@ from stratos_orchestrator.domain.entities import (
     TaskStatus,
 )
 from stratos_orchestrator.domain.ports import LLMProvider, OutputFormatter, ToolExecutor
+from stratos_orchestrator.application.langchain_v3 import LangChainAgentRuntime
 from stratos_orchestrator.application.v2 import V2OrchestrateUseCase, V2StreamOrchestrateUseCase
 
 
@@ -104,4 +105,4 @@ class OrchestrateUseCase:
         )
 
 
-__all__ = ["OrchestrateUseCase", "V2OrchestrateUseCase", "V2StreamOrchestrateUseCase"]
+__all__ = ["LangChainAgentRuntime", "OrchestrateUseCase", "V2OrchestrateUseCase", "V2StreamOrchestrateUseCase"]

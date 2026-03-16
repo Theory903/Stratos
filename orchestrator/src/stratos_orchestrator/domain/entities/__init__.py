@@ -82,4 +82,15 @@ class StrategicMemo:
     system_regime: str = "normal"        # normal, stressed, crisis
     regime_stability: float = 1.0        # 0.0 - 1.0
     scenario_tree: list[dict] = field(default_factory=list)
+    intent: str = "research"
+    role: str = "pm"
+    decision: str = ""
+    summary: str = ""
+    key_findings: list[str] = field(default_factory=list)
+    historical_context: list[str] = field(default_factory=list)
+    portfolio_impact: list[str] = field(default_factory=list)
+    recommended_actions: list[str] = field(default_factory=list)
+    watch_items: list[str] = field(default_factory=list)
+    data_quality: list[str] = field(default_factory=list)
+    evidence_blocks: list[dict] = field(default_factory=list)
     generated_at: datetime = field(default_factory=datetime.utcnow)

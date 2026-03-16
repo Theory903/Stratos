@@ -21,7 +21,7 @@ type CountryWorkspaceState = {
 }
 
 export default function CountryWorkspacePage() {
-  const params = useParams<{ code: string }>()
+  const params = useParams<{ code: string }>() ?? { code: "" }
   const code = String(params.code || "").toUpperCase()
 
   const [loading, setLoading] = useState(true)

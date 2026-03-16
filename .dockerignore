@@ -58,6 +58,13 @@ ml/notebooks/.ipynb_checkpoints
 **/*.swo
 **/Thumbs.db
 
+# ── Local Environment / Hidden Files ──────────────────
+.local_docker/
+.local_tmp/
+.tsbuildinfo
+*.tsbuildinfo
+frontend/.next-*/
+
 # ── Docs / misc ───────────────────────────────────────
 docs
 plans

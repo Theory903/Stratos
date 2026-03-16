@@ -1,0 +1,1343 @@
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-text-primary)
+  }
+
+  .wrap {
+    padding: 1rem 0
+  }
+
+  .search-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    align-items: center
+  }
+
+  .search-bar input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 0.5px solid var(--color-border-secondary);
+    border-radius: var(--border-radius-md);
+    background: var(--color-background-secondary);
+    color: var(--color-text-primary);
+    font-size: 13px;
+    font-family: var(--font-sans)
+  }
+
+  .search-bar input::placeholder {
+    color: var(--color-text-tertiary)
+  }
+
+  .filter-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 18px
+  }
+
+  .pill {
+    padding: 4px 11px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-secondary);
+    color: var(--color-text-secondary);
+    transition: all .15s
+  }
+
+  .pill:hover,
+  .pill.on {
+    border-color: var(--color-border-primary);
+    background: var(--color-background-primary);
+    color: var(--color-text-primary)
+  }
+
+  .pill.on {
+    font-weight: 500
+  }
+
+  .section {
+    margin-bottom: 6px
+  }
+
+  .sec-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    background: var(--color-background-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+    user-select: none;
+    transition: border-color .15s
+  }
+
+  .sec-header:hover {
+    border-color: var(--color-border-secondary)
+  }
+
+  .sec-left {
+    display: flex;
+    align-items: center;
+    gap: 10px
+  }
+
+  .sec-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0
+  }
+
+  .sec-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary)
+  }
+
+  .sec-count {
+    font-size: 11px;
+    color: var(--color-text-tertiary)
+  }
+
+  .sec-arrow {
+    font-size: 11px;
+    color: var(--color-text-tertiary);
+    transition: transform .2s
+  }
+
+  .sec-arrow.open {
+    transform: rotate(90deg)
+  }
+
+  .sec-body {
+    display: none;
+    padding: 2px 0 4px 0
+  }
+
+  .sec-body.open {
+    display: block
+  }
+
+  .flow-card {
+    margin: 3px 0;
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-md);
+    overflow: hidden
+  }
+
+  .flow-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px;
+    cursor: pointer;
+    background: var(--color-background-primary);
+    transition: background .1s
+  }
+
+  .flow-header:hover {
+    background: var(--color-background-secondary)
+  }
+
+  .flow-left {
+    display: flex;
+    align-items: center;
+    gap: 10px
+  }
+
+  .flow-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.4px;
+    font-family: var(--font-mono);
+    flex-shrink: 0
+  }
+
+  .flow-name {
+    font-size: 13px;
+    color: var(--color-text-primary);
+    font-weight: 500
+  }
+
+  .flow-toggle {
+    font-size: 11px;
+    color: var(--color-text-tertiary);
+    transition: transform .2s
+  }
+
+  .flow-toggle.open {
+    transform: rotate(90deg)
+  }
+
+  .flow-body {
+    display: none;
+    padding: 10px 12px 12px;
+    border-top: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-primary)
+  }
+
+  .flow-body.open {
+    display: block
+  }
+
+  .happy-path {
+    margin-bottom: 10px
+  }
+
+  .hp-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-text-success);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    margin-bottom: 6px
+  }
+
+  .hp-steps {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px
+  }
+
+  .hp-step {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    background: var(--color-background-secondary);
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 0.5px solid var(--color-border-tertiary)
+  }
+
+  .hp-arr {
+    font-size: 11px;
+    color: var(--color-text-tertiary)
+  }
+
+  .edge-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-text-warning);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    margin-bottom: 6px;
+    margin-top: 10px
+  }
+
+  .edge-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px
+  }
+
+  .edge-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    font-size: 12px
+  }
+
+  .edge-trigger {
+    color: var(--color-text-danger);
+    font-weight: 500;
+    min-width: 160px;
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding-top: 1px
+  }
+
+  .edge-resolve {
+    color: var(--color-text-secondary);
+    flex: 1;
+    line-height: 1.5
+  }
+
+  .no-results {
+    text-align: center;
+    padding: 32px;
+    color: var(--color-text-tertiary);
+    font-size: 13px
+  }
+
+  .stats-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px
+  }
+
+  .stat {
+    background: var(--color-background-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-md);
+    padding: 8px 14px;
+    flex: 1;
+    text-align: center
+  }
+
+  .stat-n {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--color-text-primary)
+  }
+
+  .stat-l {
+    font-size: 11px;
+    color: var(--color-text-tertiary);
+    margin-top: 2px;
+    font-family: var(--font-mono)
+  }
+
+  @media (max-width: 900px) {
+    .stats-row {
+      grid-template-columns: repeat(2, 1fr);
+      display: grid
+    }
+
+    .edge-item {
+      flex-direction: column
+    }
+
+    .edge-trigger {
+      min-width: 0
+    }
+  }
+</style>
+
+<div class="wrap">
+  <div class="stats-row" id="stats"></div>
+
+  <div class="search-bar">
+    <input type="text" id="search" placeholder="Search flows, edge cases, states..." oninput="render()">
+  </div>
+
+  <div class="filter-pills" id="filters"></div>
+  <div id="output"></div>
+</div>
+
+<script>
+  const DATA = [
+    {
+      cat: "Auth & entry", color: "#378ADD", flows: [
+        {
+          id: "A1", name: "Unauthenticated landing", steps: ["Marketing shell", "Choose sign in / start workspace / demo", "Protected app hidden"],
+          edges: [
+            ["Bot or scraper traffic", "Serve static landing only; no protected bootstrap calls or expensive data requests"],
+            ["Direct deep link to /dashboard/*", "Redirect to auth and preserve intended URL for post-auth return"],
+            ["Keycloak unavailable", "Show degraded auth state with retry; no blank screen or silent loop"],
+            ["Existing valid session", "Skip landing and route to workspace, onboarding, or last active page"],
+            ["User on slow network", "Render landing shell immediately; lazy-load noncritical media"],
+            ["Cookie rejection", "Fall back to token-in-memory/session-based auth where supported; show warning if persistence is limited"],
+          ]
+        },
+        {
+          id: "A2", name: "Sign up — email path", steps: ["Enter email + password", "Email verification sent", "Verify link", "Continue to workspace"],
+          edges: [
+            ["Email already registered", "Offer sign-in path; do not expose account internals"],
+            ["Weak password", "Inline strength rules and block submit until satisfied"],
+            ["Verification email delayed", "Allow resend after cooldown; show spam-folder guidance"],
+            ["Verification link expired", "Expired page offers one-click resend and preserves email"],
+            ["User verifies twice", "Second open routes to sign-in/workspace rather than error"],
+            ["Tab closed before verify", "Resume state next visit with verify reminder banner"],
+            ["Temporary email detected", "Allow if policy permits, otherwise block with explanation"],
+          ]
+        },
+        {
+          id: "A3", name: "Sign up — SSO path", steps: ["Choose provider", "OAuth redirect", "Return with token", "Continue to workspace"],
+          edges: [
+            ["SSO popup blocked", "Fall back to redirect-based OAuth flow"],
+            ["Provider returns no email", "Request manual email completion before workspace step"],
+            ["State mismatch / CSRF", "Invalidate auth attempt and restart safely"],
+            ["Provider account already linked", "Auto-sign-in and skip duplicate registration"],
+            ["User cancels provider consent", "Return to sign-up with provider-specific retry action"],
+          ]
+        },
+        {
+          id: "A4", name: "Sign in", steps: ["Enter credentials", "Identity validated", "Session issued", "Route to last valid destination"],
+          edges: [
+            ["Wrong password", "Rate-limit after threshold; show countdown and password reset link"],
+            ["Suspended account", "Show safe status message and support route"],
+            ["Expired session", "Silent refresh first; if failed, redirect to sign-in with intended URL preserved"],
+            ["Refresh token revoked", "Graceful sign-out with 'session ended' message"],
+            ["Concurrent tabs", "Tabs sync auth state so user does not see mixed logged-in/logged-out states"],
+            ["Clock skew on device", "Use server validation and show generic auth retry state if token timing fails"],
+          ]
+        },
+        {
+          id: "A5", name: "Forgot password", steps: ["Enter email", "Reset email sent", "Open link", "Set password", "Return to sign in"],
+          edges: [
+            ["Email not registered", "Show same confirmation response to avoid account enumeration"],
+            ["Expired reset link", "Offer immediate resend from expired-link state"],
+            ["Password reused", "Block reuse of recent passwords"],
+            ["User already logged in elsewhere", "Invalidate other sessions after reset if policy requires"],
+          ]
+        },
+        {
+          id: "A6", name: "Log out", steps: ["Open account menu", "Sign out", "Tokens revoked", "Return to landing"],
+          edges: [
+            ["Logout from one tab only", "All tabs sync logout state"],
+            ["Network fails during logout", "Clear local session anyway and mark remote token for later revoke"],
+            ["Unsaved work exists", "Warn user before logout and preserve recoverable drafts locally"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Billing & plans", color: "#6B82FF", flows: [
+        {
+          id: "B1", name: "Start trial", steps: ["Choose plan", "Create billing profile", "Trial begins", "Workspace entitlements applied"],
+          edges: [
+            ["Card required for trial", "Explain policy before form, not after submit"],
+            ["Trial already used on same org", "Offer paid start or demo workspace"],
+            ["Webhook delay after checkout", "Show pending billing state and poll entitlements before blocking access"],
+            ["User closes checkout tab", "Resume from billing return screen with status check"],
+          ]
+        },
+        {
+          id: "B2", name: "Upgrade plan", steps: ["Open pricing / billing", "Choose plan", "Checkout", "Entitlements update"],
+          edges: [
+            ["Upgrade while agent job running", "Do not interrupt active job; apply new limits immediately after"],
+            ["Proration confusion", "Show exact pro-rated amount before confirm"],
+            ["Owner not present", "Admins without billing rights see contact-owner state"],
+          ]
+        },
+        {
+          id: "B3", name: "Payment failure", steps: ["Invoice fails", "Access soft-limited", "User updates payment method", "Entitlements restored"],
+          edges: [
+            ["Retry succeeds automatically", "Remove banner without user confusion"],
+            ["Payment fails repeatedly", "Move to read-only grace state before hard restriction"],
+            ["Webhook duplicated", "Idempotent entitlement updates; no duplicate banners or charges"],
+          ]
+        },
+        {
+          id: "B4", name: "Usage limit hit", steps: ["User hits quota", "Inline limit state shown", "Upgrade or wait", "Continue when available"],
+          edges: [
+            ["Agent limit hit mid-day", "Show remaining reset window and upgrade CTA"],
+            ["Team quota hit by another member", "Show workspace-level usage, not misleading personal-only count"],
+            ["Free user hits export limit", "Keep view access; gate export only"],
+          ]
+        },
+        {
+          id: "B5", name: "Cancel / reactivate", steps: ["Open billing portal", "Cancel plan or end trial", "Confirm", "Access changes by schedule"],
+          edges: [
+            ["Cancel at period end", "Preserve full access until end date"],
+            ["Reactivate before end date", "Restore without forcing new checkout if supported"],
+            ["Cancellation while owner absent", "Require billing-role confirmation"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Onboarding", color: "#00C8A0", flows: [
+        {
+          id: "O1", name: "Create workspace", steps: ["Name workspace", "Pick role", "Pick focus", "Continue"],
+          edges: [
+            ["Duplicate name within org", "Suggest alternatives or allow duplicates with context label"],
+            ["Role skipped", "Default to PM and allow change later"],
+            ["Refresh mid-step", "Preserve state in session and server draft"],
+            ["Back navigation", "Restore prior values, not blank forms"],
+            ["Submit fails", "Retry inline; no hard navigation reset"],
+          ]
+        },
+        {
+          id: "O2", name: "Portfolio setup — manual", steps: ["Choose manual entry", "Enter ticker + quantity + cost", "Add positions", "Continue"],
+          edges: [
+            ["Invalid ticker", "Inline validation with closest match suggestions"],
+            ["Negative or zero quantity", "Block submit with field-level error"],
+            ["Duplicate ticker", "Offer merge into existing lot or create separate lot"],
+            ["Too many manual entries", "Prompt CSV upload after threshold to reduce friction"],
+            ["No positions added", "Allow continue if role/focus supports no-portfolio mode; otherwise show sample or upload CTA"],
+          ]
+        },
+        {
+          id: "O3", name: "Portfolio setup — CSV upload", steps: ["Choose CSV upload", "Upload file", "Map columns", "Validate", "Confirm import"],
+          edges: [
+            ["Wrong file type", "Reject clearly and link template"],
+            ["File too large", "Suggest chunked upload or split file"],
+            ["Missing columns", "Show exact missing fields and expected schema"],
+            ["Unknown tickers", "Flag row-level issues with skip/fix options"],
+            ["Duplicate rows", "Offer merge strategy before import"],
+            ["Encoding issues", "Auto-detect; if fail, provide encoding guidance"],
+            ["Partial import", "Show imported count + failed rows with downloadable error file"],
+            ["Network interruption", "Resume upload where possible"],
+          ]
+        },
+        {
+          id: "O4", name: "Portfolio setup — sample workspace", steps: ["Choose sample data", "Confirm label", "Load sample book", "Continue to Command"],
+          edges: [
+            ["User confuses sample with real", "Persistent sample banner across shell and memo/save flows"],
+            ["User wants to replace sample", "Provide one clear 'Replace with real portfolio' path and archive sample decisions separately"],
+          ]
+        },
+        {
+          id: "O5", name: "Scope setup", steps: ["Choose regions / markets", "Set benchmark", "Optional watchlist", "Open workspace"],
+          edges: [
+            ["No scope selected", "Apply defaults rather than empty shell"],
+            ["Benchmark not found", "Allow custom benchmark with unverified label"],
+            ["Everything selected", "Valid; show global-mode label"],
+            ["Scope changed later", "Re-enqueue snapshots and preserve current screen"],
+          ]
+        },
+        {
+          id: "O6", name: "Onboarding abandon & resume", steps: ["User exits mid-flow", "Returns later", "Resume from last valid step"],
+          edges: [
+            ["Returns after long gap", "Offer resume or restart"],
+            ["Different device", "Resume from server-side draft, not only local storage"],
+            ["Workspace exists but portfolio skipped", "Land in no-portfolio state, not broken dashboard"],
+          ]
+        },
+        {
+          id: "O7", name: "First-value handoff", steps: ["Onboarding completes", "Command opens", "Suggested action appears", "User reaches first useful result"],
+          edges: [
+            ["Snapshots still building", "Command loads partial ready cards and pending cards together"],
+            ["Portfolio absent by design", "Show macro/event-first command surface with add-portfolio CTA"],
+            ["Agent suggested prompt clicked immediately", "Use current role/scope defaults and preserve onboarding context"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Demo & sample mode", color: "#8D6BFF", flows: [
+        {
+          id: "D1", name: "Enter demo workspace", steps: ["Choose demo from landing", "Load sample workspace", "Open Command in demo mode"],
+          edges: [
+            ["Demo resources slow to load", "Render shell fast and hydrate demo data progressively"],
+            ["User deep links into demo page", "Open demo if route is allowed; otherwise land on demo Command"],
+            ["Demo data outdated", "Show explicit sample freshness date"],
+          ]
+        },
+        {
+          id: "D2", name: "Convert demo to real workspace", steps: ["User chooses convert", "Create real workspace", "Copy allowed preferences", "Require real portfolio setup"],
+          edges: [
+            ["User expects sample holdings to become real", "Force explicit confirmation before copying any sample positions"],
+            ["User lacks auth", "Prompt sign-in/signup before conversion"],
+            ["Billing required before conversion", "Gate with pricing step if needed"],
+          ]
+        },
+        {
+          id: "D3", name: "Reset demo", steps: ["Open demo controls", "Reset sample state", "Return demo to known baseline"],
+          edges: [
+            ["User has unsaved demo notes", "Warn before reset and allow export"],
+            ["Demo reset fails", "Restore prior state rather than partial corruption"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "App shell states", color: "#A07AFF", flows: [
+        {
+          id: "S1", name: "No account", steps: ["Hit app URL", "Redirect to landing", "Show sign in / demo options"],
+          edges: [
+            ["Deep link to protected page", "Preserve return path after auth"],
+            ["Shared demo URL", "Allow open without auth if route is explicitly public-demo safe"],
+          ]
+        },
+        {
+          id: "S2", name: "Account, no workspace", steps: ["Sign in", "No workspace found", "Force onboarding shell"],
+          edges: [
+            ["Manual URL navigation", "Intercept protected routes until workspace exists"],
+            ["Workspace lookup 404", "Treat as no-workspace state, not generic error page"],
+          ]
+        },
+        {
+          id: "S3", name: "Workspace, no portfolio", steps: ["Land in Command", "Portfolio blocks render empty state", "Add / upload / sample CTA visible"],
+          edges: [
+            ["Open /portfolio directly", "Show full portfolio setup surface, not dead end"],
+            ["Agent asks portfolio question", "Agent explains missing portfolio and offers next action"],
+            ["Run scenario without book", "Block inline with portfolio-required CTA"],
+          ]
+        },
+        {
+          id: "S4", name: "Portfolio loaded, snapshots building", steps: ["Portfolio imported", "Snapshot jobs queued", "Cards show pending", "Ready cards render as they complete"],
+          edges: [
+            ["Long-running jobs", "Show progress expectation and let user continue elsewhere"],
+            ["Partial readiness", "Never block whole screen waiting for final card"],
+            ["Job failure", "Show card-level retry and support state"],
+            ["Refresh during build", "Do not duplicate jobs unnecessarily"],
+          ]
+        },
+        {
+          id: "S5", name: "Wrong role or no permission", steps: ["User opens restricted surface", "Clean access state shown", "Allowed alternatives suggested"],
+          edges: [
+            ["Read-only collaborator", "Disable writes but keep visibility where safe"],
+            ["Plan required", "Show upgrade CTA, not empty section"],
+            ["Future-role page not launched", "Show preview state rather than route failure"],
+          ]
+        },
+        {
+          id: "S6", name: "Session expired mid-use", steps: ["Token expires", "Silent refresh fails", "Next request intercepted", "Sign-in flow opens"],
+          edges: [
+            ["Unsaved memo present", "Store recoverable content and restore after auth"],
+            ["CSV import in progress", "Preserve upload state or restart from last confirmed checkpoint"],
+            ["Multiple tabs", "Tabs converge to same auth state quickly"],
+          ]
+        },
+        {
+          id: "S7", name: "Workspace switch", steps: ["User opens workspace switcher", "Select workspace", "Shell reloads context", "Pages refetch scoped data"],
+          edges: [
+            ["Switch mid-agent stream", "Warn or queue switch until stream ends"],
+            ["Workspace missing permissions for current page", "Route to nearest valid page in new workspace"],
+            ["Large workspace change in scope", "Clear cached page-level snapshots to avoid leakage"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Command center", color: "#1A8CFF", flows: [
+        {
+          id: "C1", name: "Daily open flow", steps: ["Open Command", "Scan macro", "Scan pulse", "Scan portfolio risk", "Review queue", "Choose next action"],
+          edges: [
+            ["Low-risk calm day", "Show calm-day state instead of empty urgency board"],
+            ["Multiple high-urgency signals", "Rank and collapse extras with count"],
+            ["No events in current window", "Show last known pulse with stale label"],
+            ["No portfolio", "Portfolio block becomes CTA while rest of page stays usable"],
+            ["Partial snapshots only", "Ready cards show immediately; pending cards remain visible"],
+          ]
+        },
+        {
+          id: "C2", name: "Open macro block", steps: ["Click macro card", "Route to Markets or macro detail", "Show related regime context"],
+          edges: [
+            ["Macro snapshot stale", "Show stale label and optional refresh"],
+            ["Macro data missing specific metric", "Render card with partial values, not total failure"],
+          ]
+        },
+        {
+          id: "C3", name: "Open event item", steps: ["Click pulse or queue event", "Route to Events", "Pre-filter relevant cluster"],
+          edges: [
+            ["Archived event", "Open archived state and suggest current related events"],
+            ["Event references company", "Offer direct jump to company research or portfolio impact"],
+          ]
+        },
+        {
+          id: "C4", name: "Use suggested prompt", steps: ["Select suggested prompt", "Open Agent with prefilled query", "Review/edit", "Send"],
+          edges: [
+            ["User edits prompt", "Allow without locking seed text"],
+            ["Prompt references book without portfolio", "Agent preserves prompt and adds missing-data notice"],
+            ["Rate limit reached", "Queue request and show expected wait"],
+          ]
+        },
+        {
+          id: "C5", name: "Command to action", steps: ["See queue item", "Click item", "Jump to Portfolio / Events / Agent", "Take action"],
+          edges: [
+            ["Action target no longer valid", "Show fallback route with explanation"],
+            ["Queue item dismissed accidentally", "Undo restore available"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Portfolio flows", color: "#00C87A", flows: [
+        {
+          id: "P1", name: "View portfolio", steps: ["Open Portfolio", "See summary", "Review positions and exposure", "Review risk posture", "Review queue"],
+          edges: [
+            ["No positions", "Show setup options, not empty chrome"],
+            ["Large portfolio", "Virtualize long lists and preserve sort/filter state"],
+            ["Single-name portfolio", "Still compute concentration and scenario blocks"],
+            ["Stale snapshot", "Show age clearly with refresh path"],
+          ]
+        },
+        {
+          id: "P2", name: "Add position manually", steps: ["Click add position", "Enter ticker + quantity + cost basis", "Save", "Recompute portfolio state"],
+          edges: [
+            ["Ticker outside tracked universe", "Allow save as unverified with warning"],
+            ["Duplicate ticker", "Offer merge or separate lot"],
+            ["Immediate edit after save", "Optimistic update and easy undo"],
+            ["Fractional quantity asset", "Allow for crypto/funds where valid"],
+          ]
+        },
+        {
+          id: "P3", name: "Edit or delete position", steps: ["Open position", "Edit fields or delete", "Confirm", "Portfolio updates"],
+          edges: [
+            ["Delete changes weight materially", "Warn before confirm"],
+            ["Snapshot build active", "Queue update or recompute safely after save"],
+            ["Undo delete", "Short-lived undo toast before hard delete"],
+          ]
+        },
+        {
+          id: "P4", name: "Import positions from CSV later", steps: ["Open import", "Upload CSV", "Map and validate", "Confirm changes"],
+          edges: [
+            ["Import would overwrite current book", "Offer merge vs replace"],
+            ["Some tickers invalid", "Import valid subset only if user approves"],
+            ["Same file uploaded twice", "Detect likely duplicate import and warn"],
+          ]
+        },
+        {
+          id: "P5", name: "Run scenario", steps: ["Choose scenario", "Optional configure shock", "Execute", "See portfolio impact", "Compare results"],
+          edges: [
+            ["No portfolio", "Require portfolio before run"],
+            ["Config incomplete", "Inline validation"],
+            ["Zero-impact result", "Render explicit no-impact result"],
+            ["Engine timeout", "Show partial impact and retry"],
+            ["Run many scenarios", "Store results for side-by-side compare"],
+          ]
+        },
+        {
+          id: "P6", name: "Rebalance suggestion", steps: ["Open rebalance block", "Review suggested trades", "Inspect target weights", "Apply or dismiss"],
+          edges: [
+            ["Already balanced", "Show explicit balanced state"],
+            ["Constraint conflict", "Highlight breached rule with explanation"],
+            ["Partial apply", "Update only accepted trades"],
+            ["Trade creates tax or liquidity concern later", "Future: flag and require confirmation"],
+          ]
+        },
+        {
+          id: "P7", name: "Decision queue", steps: ["Review ranked decisions", "Open item", "Route to action surface", "Resolve or dismiss"],
+          edges: [
+            ["Queue empty", "Show no-pending-decisions state"],
+            ["Item source archived", "Open archived state gracefully"],
+            ["All items dismissed", "Allow restore or rebuild queue"],
+          ]
+        },
+        {
+          id: "P8", name: "Save decision", steps: ["Open output", "Save decision", "Optional note", "Decision stored in log"],
+          edges: [
+            ["Offline when saving", "Queue and sync later"],
+            ["Duplicate save", "Offer overwrite or save new version"],
+            ["Decision log limit reached", "Prompt archive/export flow"],
+          ]
+        },
+        {
+          id: "P9", name: "Portfolio switch", steps: ["Select portfolio", "Reload scoped views", "Continue on same page if valid"],
+          edges: [
+            ["No access to selected portfolio", "Show permission state"],
+            ["Switch while scenario panel open", "Warn before discarding transient state"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Agent flows", color: "#FF6B35", flows: [
+        {
+          id: "AG1", name: "Ask agent — full happy path", steps: ["User types query", "Intent classified", "Role classified", "Plan built", "Tools validated", "Tools execute", "Memo generated", "User acts"],
+          edges: [
+            ["Too vague query", "Ask one clarifying question or provide structured assumptions"],
+            ["Out-of-scope prompt", "Decline gracefully and redirect toward valid financial asks"],
+            ["Missing data referenced", "Proceed with available evidence and note gaps"],
+            ["Non-English query", "Respond in detected language where supported"],
+            ["Trivial prompt", "Reject with guidance instead of fabricating a grand memo"],
+          ]
+        },
+        {
+          id: "AG2", name: "Intent classification", steps: ["Parse query", "Assign primary intent", "Seed relevant supporting intents if needed"],
+          edges: [
+            ["Multi-intent query", "Set primary intent and attach secondary context"],
+            ["Unknown intent", "Fallback to research or macro default, not hard fail"],
+            ["Future-role-only ask", "Answer partially in current supported mode and explain limits"],
+          ]
+        },
+        {
+          id: "AG3", name: "Tool planning and validation", steps: ["Generate tool plan", "Validate schemas", "Deduplicate calls", "Apply budget", "Execute valid plan"],
+          edges: [
+            ["Unknown tool", "Guardrail removes it and records note"],
+            ["Invalid args", "Catch before execution and repair or skip"],
+            ["Budget cap hit", "Proceed with highest-value subset and disclose limit"],
+            ["Same tool repeated", "Dedupe identical argument payloads"],
+          ]
+        },
+        {
+          id: "AG4", name: "Tool execution", steps: ["Execute tools in order", "Collect results", "Mark failures", "Aggregate evidence"],
+          edges: [
+            ["202 pending from one tool", "Continue with available tools and mark pending evidence"],
+            ["500 from one tool", "Skip failing tool and continue where possible"],
+            ["Empty dataset", "Treat as absence, not failure or hallucination"],
+            ["Timeout on slow tool", "Abort that tool with note; keep whole memo alive"],
+          ]
+        },
+        {
+          id: "AG5", name: "Memo output", steps: ["Stream memo to UI", "Show structured sections", "User reviews and acts"],
+          edges: [
+            ["Empty model output", "Show no-output state with retry"],
+            ["Very low confidence", "Surface warning clearly"],
+            ["Extreme worst case", "Elevate visually in memo"],
+            ["User scrolls away mid-stream", "Keep stream alive and restore latest state"],
+            ["Follow-up asked mid-stream", "Queue follow-up or ask user whether to interrupt"],
+          ]
+        },
+        {
+          id: "AG6", name: "Rate limiting and queues", steps: ["User submits request", "Limit checked", "Queue or run", "Status shown"],
+          edges: [
+            ["Team limit reached", "Show team-level usage not just personal count"],
+            ["Mid-stream limit", "Close gracefully with partial memo and retry guidance"],
+            ["Free plan cap", "Show upgrade path and next reset timing"],
+          ]
+        },
+        {
+          id: "AG7", name: "Post-memo navigation", steps: ["Memo rendered", "User chooses scenario / portfolio / events / save / export", "Continue workflow"],
+          edges: [
+            ["Chosen action requires portfolio", "Prompt add/load portfolio"],
+            ["Event expired", "Route to archived event plus current related items"],
+            ["Export unavailable", "Show future-state message without dead button"],
+          ]
+        },
+        {
+          id: "AG8", name: "Follow-up thread", steps: ["User asks follow-up", "Context from prior memo preserved", "Agent runs delta analysis", "Returns continuation memo"],
+          edges: [
+            ["Context window too large", "Summarize prior memo into compact system context"],
+            ["User switches portfolio before follow-up", "Warn that context changed"],
+            ["Prior memo from sample workspace", "Keep sample label in follow-up output"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Events flows", color: "#FFB84D", flows: [
+        {
+          id: "EV1", name: "Browse events", steps: ["Open Events", "Read pulse", "Browse clusters", "Open cluster", "Read feed"],
+          edges: [
+            ["No events in scope", "Show empty scope state with switch suggestion"],
+            ["Feed very large", "Paginate and lazy-load"],
+            ["Same event across clusters", "Cross-link instead of duplicate walls"],
+            ["Cluster stale", "Show archived or stale badge"],
+          ]
+        },
+        {
+          id: "EV2", name: "Event to portfolio routing", steps: ["Open cluster", "Choose portfolio impact", "Portfolio opens in filtered context"],
+          edges: [
+            ["No portfolio", "Route to portfolio setup with event context preserved"],
+            ["No direct holdings impacted", "Show macro/benchmark impact instead"],
+            ["Portfolio stale", "Allow continue with warning"],
+          ]
+        },
+        {
+          id: "EV3", name: "Event to agent routing", steps: ["Open cluster", "Ask agent", "Prefill context", "Generate memo"],
+          edges: [
+            ["Agent queue full", "Persist event context while queued"],
+            ["Conflicting signals in cluster", "Agent must surface conflict explicitly"],
+          ]
+        },
+        {
+          id: "EV4", name: "Scope switch", steps: ["Switch India / US / BTC / Global", "Refetch pulse/feed/clusters", "Render new scope"],
+          edges: [
+            ["No data in scope", "Show empty but valid state"],
+            ["Request fails", "Restore prior scope with toast"],
+            ["Scope change while deep in cluster", "Offer stay/reset choice"],
+          ]
+        },
+        {
+          id: "EV5", name: "Search events", steps: ["Search query", "Show matched feed or clusters", "Open result"],
+          edges: [
+            ["No search results", "Suggest broader terms or scope switch"],
+            ["Quoted search exact match fails", "Fallback to semantic contains search if supported later"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Research flows", color: "#5DCAA5", flows: [
+        {
+          id: "R1", name: "Compare entities", steps: ["Open Research", "Choose entities", "Choose metrics", "Review deltas and ranks"],
+          edges: [
+            ["Missing entity data", "Show partial compare cleanly"],
+            ["Metric unavailable for one entity", "Render N/A with explanation"],
+            ["Too many entities", "Collapse or horizontal compare view"],
+            ["Unverified ticker", "Allow limited compare with coverage warning"],
+          ]
+        },
+        {
+          id: "R2", name: "Company drilldown", steps: ["Search company", "Open company workspace", "View metrics, anomalies, filings, history", "Route onward"],
+          edges: [
+            ["Limited coverage company", "Show what is available and what is missing"],
+            ["Filings pending", "Render pending filings card, not blank area"],
+            ["High anomaly score", "Elevate anomaly above fold"],
+            ["Open from event context", "Preserve breadcrumb or context chip"],
+          ]
+        },
+        {
+          id: "R3", name: "Country drilldown", steps: ["Open country workspace", "View macro, policy, events, regime context"],
+          edges: [
+            ["Country outside default scope", "Allow view and offer add-to-scope"],
+            ["Policy stale", "Display last updated clearly"],
+          ]
+        },
+        {
+          id: "R4", name: "Historical analogs", steps: ["Open analog view", "Review similar periods", "Compare current vs analog metrics"],
+          edges: [
+            ["No strong analog", "Say so explicitly"],
+            ["Mixed analog period", "Flag regime mixing so user does not overtrust it"],
+          ]
+        },
+        {
+          id: "R5", name: "Anomaly exploration", steps: ["Open anomaly lens", "Select entity/metric", "See severity + explanation", "Route to deeper analysis"],
+          edges: [
+            ["Anomaly still computing", "Show pending state rather than zero"],
+            ["Severity low", "Do not over-highlight it visually"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Command palette", color: "#D4537E", flows: [
+        {
+          id: "CP1", name: "Open and navigate", steps: ["Press Cmd+K", "Type query", "Review results", "Select result", "Route or execute"],
+          edges: [
+            ["No results", "Show no-match state and closest suggestions"],
+            ["Ticker query like AAPL", "Route directly to company workspace"],
+            ["Page name typed", "Jump instantly"],
+            ["Command like 'ask agent oil risk'", "Open agent with prefilled query"],
+            ["Palette opened mid-stream", "Pause noncritical keyboard capture; preserve stream"],
+            ["Mobile device", "Full-screen sheet instead of desktop popover"],
+            ["Offline mode", "Allow local navigation and cached recent entities only"],
+          ]
+        },
+        {
+          id: "CP2", name: "Recent commands", steps: ["Open palette", "See recents", "Reuse quickly"],
+          edges: [
+            ["No recents", "Show onboarding suggestions"],
+            ["Deleted target in recents", "Remove stale record silently"],
+          ]
+        },
+        {
+          id: "CP3", name: "Quick actions", steps: ["Open palette", "Choose run scenario / add portfolio / open events / save decision", "Action launches"],
+          edges: [
+            ["Action requires missing state", "Route to setup instead of failing"],
+            ["Action restricted by role", "Show permission notice in palette"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Markets flows", color: "#85B7EB", flows: [
+        {
+          id: "MK1", name: "View market bars", steps: ["Open Markets", "Select asset", "View bars", "Read regime overlay"],
+          edges: [
+            ["Asset not tracked", "Show not-tracked state and suggest nearest alternatives"],
+            ["Bars stale", "Show timestamp and refresh option"],
+            ["Regime missing", "Show bars independently with no-regime note"],
+            ["Fetch error", "Render retry card, not silent empty graph"],
+          ]
+        },
+        {
+          id: "MK2", name: "Cross-asset context", steps: ["Open cross-asset view", "See related assets", "Interpret regime or pressure"],
+          edges: [
+            ["Only one asset in scope", "Prompt user to expand scope"],
+            ["Correlation still computing", "Show pending block, not zero values"],
+          ]
+        },
+        {
+          id: "MK3", name: "Market strip interaction", steps: ["Use top pulse strip", "Click index or asset", "Jump to deeper market page"],
+          edges: [
+            ["Asset missing full detail page", "Open minimal quote view instead of 404"],
+            ["Strip data stale but page data ready", "Label strip independently"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Search & discovery", color: "#4CB0C8", flows: [
+        {
+          id: "SD1", name: "Global entity search", steps: ["Use search or command palette", "Type ticker / company / country / event", "Open result"],
+          edges: [
+            ["Ambiguous name", "Show typed ranking with entity type chips"],
+            ["Same symbol across venues", "Disambiguate by exchange or asset class"],
+            ["No coverage", "Offer add-to-watchlist or request coverage later"],
+          ]
+        },
+        {
+          id: "SD2", name: "Saved decisions search", steps: ["Search decisions", "Filter by date / portfolio / tag", "Open saved item"],
+          edges: [
+            ["Decision archived", "Open read-only archive state"],
+            ["Workspace changed", "Show decision not available in current workspace"],
+          ]
+        },
+        {
+          id: "SD3", name: "Recent activity", steps: ["Open recent activity", "See recent portfolios, memos, entities", "Jump back into work"],
+          edges: [
+            ["Recent item deleted", "Hide stale item quietly"],
+            ["Recent item restricted now", "Show locked state instead of broken route"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Alerts & notifications", color: "#E39E2E", flows: [
+        {
+          id: "N1", name: "Create alert", steps: ["Open alerts", "Choose trigger", "Set threshold", "Choose scope", "Save"],
+          edges: [
+            ["Duplicate alert exists", "Offer merge or edit existing"],
+            ["Threshold invalid", "Inline validation"],
+            ["Alert for stale data only", "Block or warn to prevent noisy false alerts"],
+          ]
+        },
+        {
+          id: "N2", name: "Alert fires", steps: ["Condition met", "Notification sent", "User opens alert", "Relevant surface opens"],
+          edges: [
+            ["Many alerts at once", "Group by type or urgency"],
+            ["Target entity archived", "Open archived state plus current related items"],
+            ["User offline", "Show inbox badge on return"],
+          ]
+        },
+        {
+          id: "N3", name: "Snooze or dismiss alert", steps: ["Open alert", "Snooze / dismiss", "State updates"],
+          edges: [
+            ["Dismissed by mistake", "Offer undo"],
+            ["Snooze overlaps repeated triggers", "Suppress duplicates during snooze window"],
+          ]
+        },
+        {
+          id: "N4", name: "Digest mode", steps: ["Daily or weekly digest generated", "User opens digest", "Routes to relevant surfaces"],
+          edges: [
+            ["Nothing meaningful happened", "Send short calm-day digest instead of empty email"],
+            ["Digest contains stale cards", "Mark stale sections clearly"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Team & collaboration", color: "#9F7AEA", flows: [
+        {
+          id: "T1", name: "Invite member", steps: ["Open team settings", "Enter email", "Assign role", "Send invite"],
+          edges: [
+            ["Email already in workspace", "Show already-added state"],
+            ["Invite to wrong domain policy", "Warn or block if org policy exists"],
+            ["Invite email delayed", "Allow resend and show pending state"],
+          ]
+        },
+        {
+          id: "T2", name: "Accept invite", steps: ["Open invite link", "Sign in or create account", "Join workspace", "Land in valid page"],
+          edges: [
+            ["Invite expired", "Allow owner resend path"],
+            ["Invite already accepted", "Route to workspace directly"],
+            ["User belongs to many workspaces", "Open workspace switcher after accept"],
+          ]
+        },
+        {
+          id: "T3", name: "Change member role", steps: ["Open team member row", "Edit role", "Confirm", "Permissions update live"],
+          edges: [
+            ["Downgrade owner accidentally", "Require ownership transfer first"],
+            ["Role changed mid-session", "Refresh capabilities without full logout"],
+          ]
+        },
+        {
+          id: "T4", name: "Remove member", steps: ["Open member actions", "Remove access", "Confirm", "Member loses workspace access"],
+          edges: [
+            ["Remove user with active session", "Invalidate workspace access immediately"],
+            ["Remove last admin", "Block until another admin exists"],
+          ]
+        },
+        {
+          id: "T5", name: "Share decision or memo", steps: ["Open saved item", "Share with workspace", "Optional note", "Recipients see shared item"],
+          edges: [
+            ["Recipient lacks portfolio access", "Open shared memo in limited evidence mode"],
+            ["Shared item later archived", "Notify viewers that source is archived"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Export & Studio", color: "#C084FC", flows: [
+        {
+          id: "ST1", name: "Export PM memo", steps: ["Open memo", "Choose export", "Generate output", "Download or save"],
+          edges: [
+            ["Data stale", "Warn before export and offer refresh first"],
+            ["Memo still streaming", "Disable export until stable or allow draft export clearly marked"],
+            ["Export generation fails", "Retry and preserve selected export options"],
+          ]
+        },
+        {
+          id: "ST2", name: "Generate risk brief", steps: ["Open Studio", "Choose risk brief", "Pull macro + pulse + scenario", "Generate"],
+          edges: [
+            ["Scenario missing", "Offer generate without scenario or run one first"],
+            ["Portfolio missing", "Risk brief downgrades to macro/event brief explicitly"],
+          ]
+        },
+        {
+          id: "ST3", name: "Generate IC pack", steps: ["Open Studio", "Choose IC pack", "Select memo + charts + analogs", "Generate package"],
+          edges: [
+            ["Chart data missing", "Generate pack with placeholder note, not broken output"],
+            ["Too many included sections", "Show estimated size/performance and allow trim"],
+          ]
+        },
+        {
+          id: "ST4", name: "Save export draft", steps: ["Configure export", "Save draft", "Return later", "Resume generation"],
+          edges: [
+            ["Source memo changed", "Warn that draft is based on older memo version"],
+            ["Draft belongs to different workspace", "Prevent cross-workspace leakage"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Settings & workspace", color: "#B4B2A9", flows: [
+        {
+          id: "W1", name: "Change role", steps: ["Settings > Workspace", "Select role", "Confirm", "Shell adapts prompts and defaults"],
+          edges: [
+            ["Role change mid-session", "Re-render capabilities without full reload"],
+            ["Role not fully launched", "Keep shared shell and mark future-role-only modules as coming soon"],
+          ]
+        },
+        {
+          id: "W2", name: "Change market scope", steps: ["Settings > Scope", "Toggle markets", "Save", "Views refresh for new scope"],
+          edges: [
+            ["Remove all markets", "Block because at least one market is required"],
+            ["Add new market", "Enqueue snapshots and show pending state where needed"],
+          ]
+        },
+        {
+          id: "W3", name: "Delete workspace", steps: ["Open danger zone", "Confirm deletion", "Workspace removed", "Route to workspace creation"],
+          edges: [
+            ["Active portfolio exists", "Warn about destructive loss and offer export"],
+            ["Saved decisions exist", "Offer archive/export first"],
+            ["Accidental click", "Short undo window before hard delete"],
+          ]
+        },
+        {
+          id: "W4", name: "Preferences update", steps: ["Change defaults", "Save", "Shell and surfaces adapt"],
+          edges: [
+            ["Invalid benchmark", "Warn but allow save if unverified is supported"],
+            ["Preference save fails", "Do not revert silently; show unsaved state"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Ingestion & background jobs", color: "#14B8A6", flows: [
+        {
+          id: "IG1", name: "Snapshot refresh request", steps: ["User or system requests data", "Refresh request created", "Worker picks job", "Snapshots rebuilt", "Read path returns ready"],
+          edges: [
+            ["Duplicate refresh requests", "Deduplicate by entity and freshness window"],
+            ["Provider rate limited", "Mark job delayed and surface delayed state rather than fake fresh"],
+            ["Job stuck", "Escalate to failed state after timeout threshold"],
+          ]
+        },
+        {
+          id: "IG2", name: "Provider ingest pipeline", steps: ["Refresh routed", "Provider fetch runs", "Raw payload stored", "Normalized docs saved", "Features built", "Insights served"],
+          edges: [
+            ["Provider partial data", "Persist what is valid and mark partial ingestion"],
+            ["Schema drift from provider", "Quarantine payload and fail safely"],
+            ["MinIO unavailable", "Abort raw archive but keep failure visible; do not claim success"],
+            ["Mongo write fails", "Job fails with partial-state cleanup or retry strategy"],
+          ]
+        },
+        {
+          id: "IG3", name: "Feature and insight build", steps: ["Ingest complete", "Features built", "Insights built", "V2 reads become ready"],
+          edges: [
+            ["Feature build fails", "Keep older snapshot if present and mark stale"],
+            ["Insight build lags feature build", "Return feature-ready surfaces where possible and mark missing derived blocks"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Error & data states", color: "#E24B4A", flows: [
+        {
+          id: "ER1", name: "Snapshot missing (202)", steps: ["UI requests snapshot", "Backend returns 202", "Pending card shown", "Poller retries", "Ready state renders"],
+          edges: [
+            ["Pending too long", "Show 'taking longer than expected' state and support/retry path"],
+            ["Job failed silently", "Detect stale pending loop and surface error state"],
+            ["Many pending cards", "Poll independently and allow partial page readiness"],
+          ]
+        },
+        {
+          id: "ER2", name: "Network offline", steps: ["Connection drops", "Offline detected", "Banner shown", "Cached data used where possible"],
+          edges: [
+            ["Agent query while offline", "Queue or block with reconnect confirmation"],
+            ["CSV upload interrupted", "Resume within defined window if supported"],
+            ["Reconnect occurs", "Refresh stale cards quietly and remove offline banner"],
+          ]
+        },
+        {
+          id: "ER3", name: "API 500 error", steps: ["Request fails", "Local component error state renders", "Retry available", "Page remains stable"],
+          edges: [
+            ["Many components fail at once", "Show global banner plus local card states"],
+            ["Agent tool 500", "Memo continues with explicit missing-data note"],
+            ["Persistent failures", "Show service issue state with status/support path"],
+          ]
+        },
+        {
+          id: "ER4", name: "Stale data warning", steps: ["Snapshot older than threshold", "Stale badge shown", "User may refresh or continue"],
+          edges: [
+            ["User ignores stale data", "Keep visible age everywhere relevant"],
+            ["Refresh rate limited", "Show countdown rather than dead button"],
+            ["Different cards have different ages", "Never fake global freshness"],
+          ]
+        },
+        {
+          id: "ER5", name: "Empty state handling", steps: ["Valid request returns no data", "Page or card shows empty state", "One useful next action is offered"],
+          edges: [
+            ["No portfolio", "Offer add/upload/sample actions"],
+            ["No events", "Offer scope switch"],
+            ["No compare data", "Offer change entity or add scope"],
+          ]
+        },
+        {
+          id: "ER6", name: "App-level crash route", steps: ["Unhandled render error", "error.tsx renders", "User sees recovery path", "App shell survives where possible"],
+          edges: [
+            ["Chunk load error after deploy", "Offer reload with version hint"],
+            ["Not found route", "Render calm not-found state with return CTAs"],
+          ]
+        },
+      ]
+    },
+
+    {
+      cat: "Future role flows", color: "#64748B", flows: [
+        {
+          id: "FUT1", name: "CFO mode", steps: ["User switches to CFO role", "Command adapts", "Business impact, rates, FX, liquidity views prioritized", "Agent answers in CFO lens"],
+          edges: [
+            ["Portfolio-only PM features not relevant", "Hide or demote rather than confusing user"],
+            ["CFO asks PM-style scenario", "Answer if possible but disclose lens mismatch"],
+          ]
+        },
+        {
+          id: "FUT2", name: "CEO mode", steps: ["User switches to CEO role", "Command simplifies", "Strategic summary prioritized", "Studio/export emphasized"],
+          edges: [
+            ["Underlying data too detailed", "Condense into executive blocks without losing traceability"],
+            ["CEO opens PM page", "Allow read-only detailed drilldown if permissions permit"],
+          ]
+        },
+        {
+          id: "FUT3", name: "Analyst deep mode", steps: ["Analyst role active", "Research surfaces promoted", "Agent biases toward compare/evidence detail", "Memo format deepens"],
+          edges: [
+            ["Analyst lacks portfolio access", "Research still works independently"],
+            ["Analyst asks portfolio-impact question", "Return limited answer without hidden holdings"],
+          ]
+        },
+      ]
+    },
+  ];
+
+  const CATS = DATA.map(d => d.cat);
+  let activeCat = null;
+  let query = '';
+  let openSecs = new Set(CATS);
+  let openFlows = new Set();
+
+  function matchFlow(f, q) {
+    const s = (f.name + ' ' + f.steps.join(' ') + ' ' + f.edges.map(e => `${e[0]} ${e[1]}`).join(' ')).toLowerCase();
+    return s.includes(q.toLowerCase());
+  }
+
+  function render() {
+    query = document.getElementById('search').value.trim();
+    const out = document.getElementById('output');
+    let totalFlows = 0, totalEdges = 0, visFlows = 0, visEdges = 0;
+    DATA.forEach(sec => sec.flows.forEach(f => { totalFlows++; totalEdges += f.edges.length; }));
+
+    const pills = document.getElementById('filters');
+    pills.innerHTML = ['All', ...CATS].map(c => `
+    <div class="pill${(activeCat === null && c === 'All') || (activeCat === c) ? ' on' : ''}" onclick="setcat(${JSON.stringify(c)})">${c}</div>
+  `).join('');
+
+    let html = '';
+    DATA.forEach(sec => {
+      if (activeCat && sec.cat !== activeCat) return;
+      const matchedFlows = sec.flows.filter(f => !query || matchFlow(f, query));
+      if (matchedFlows.length === 0) return;
+
+      visFlows += matchedFlows.length;
+      matchedFlows.forEach(f => visEdges += f.edges.length);
+
+      const secId = sec.cat.replace(/\s/g, '_');
+      const isOpen = openSecs.has(sec.cat);
+
+      html += `
+      <div class="section" id="sec-${secId}">
+        <div class="sec-header" onclick="toggleSec(${JSON.stringify(sec.cat)})">
+          <div class="sec-left">
+            <div class="sec-dot" style="background:${sec.color}"></div>
+            <span class="sec-title">${sec.cat}</span>
+            <span class="sec-count">${matchedFlows.length} flow${matchedFlows.length !== 1 ? 's' : ''} · ${matchedFlows.reduce((a, f) => a + f.edges.length, 0)} edge cases</span>
+          </div>
+          <span class="sec-arrow${isOpen ? ' open' : ''}">&#9658;</span>
+        </div>
+        <div class="sec-body${isOpen ? ' open' : ''}">
+    `;
+
+      matchedFlows.forEach(f => {
+        const isFlowOpen = openFlows.has(f.id) || !!query;
+        html += `
+        <div class="flow-card">
+          <div class="flow-header" onclick="toggleFlow(${JSON.stringify(f.id)})">
+            <div class="flow-left">
+              <span class="flow-tag" style="background:${sec.color}22;color:${sec.color};border:0.5px solid ${sec.color}44">${f.id}</span>
+              <span class="flow-name">${f.name}</span>
+            </div>
+            <span class="flow-toggle${isFlowOpen ? ' open' : ''}">&#9658;</span>
+          </div>
+          <div class="flow-body${isFlowOpen ? ' open' : ''}">
+            <div class="happy-path">
+              <div class="hp-label">Happy path</div>
+              <div class="hp-steps">
+                ${f.steps.map((s, i) => `<span class="hp-step">${s}</span>${i < f.steps.length - 1 ? '<span class="hp-arr">→</span>' : ''}`).join('')}
+              </div>
+            </div>
+            <div class="edge-label">Edge cases (${f.edges.length})</div>
+            <div class="edge-list">
+              ${f.edges.map(e => `
+                <div class="edge-item">
+                  <span class="edge-trigger">${e[0]}</span>
+                  <span class="edge-resolve">${e[1]}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+      });
+
+      html += `</div></div>`;
+    });
+
+    if (!html) html = `<div class="no-results">No flows match "${query}"</div>`;
+    out.innerHTML = html;
+
+    const stats = document.getElementById('stats');
+    stats.innerHTML = `
+    <div class="stat"><div class="stat-n">${visFlows}</div><div class="stat-l">flows shown</div></div>
+    <div class="stat"><div class="stat-n">${visEdges}</div><div class="stat-l">edge cases</div></div>
+    <div class="stat"><div class="stat-n">${totalFlows}</div><div class="stat-l">total flows</div></div>
+    <div class="stat"><div class="stat-n">${totalEdges}</div><div class="stat-l">total edge cases</div></div>
+  `;
+  }
+
+  function setcat(c) {
+    activeCat = (c === 'All') ? null : c;
+    render();
+  }
+
+  function toggleSec(cat) {
+    if (openSecs.has(cat)) openSecs.delete(cat); else openSecs.add(cat);
+    render();
+  }
+
+  function toggleFlow(id) {
+    if (openFlows.has(id)) openFlows.delete(id); else openFlows.add(id);
+    render();
+  }
+
+  render();
+</script>

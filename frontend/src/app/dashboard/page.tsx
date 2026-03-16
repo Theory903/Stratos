@@ -2,76 +2,105 @@
 
 import Link from "next/link"
 import { startTransition, useEffect, useState } from "react"
-import { Activity, ArrowUpRight, Building2, Globe2, Loader2, ShieldCheck } from "lucide-react"
+import {
+  Activity,
+  CandlestickChart,
+  Globe2,
+  Loader2,
+  Radar,
+  ShieldAlert,
+} from "lucide-react"
 
 import {
   api,
-  CompanySnapshot,
-  CountrySnapshot,
-  formatRegimeFactorSummary,
+  DecisionQueueSnapshot,
+  EventPulse,
+  HistoricalRegimeSnapshot,
   MarketRegimeSnapshot,
   PendingSnapshot,
+  PortfolioRiskSnapshot,
   SnapshotEnvelope,
   WorldState,
+  formatRegimeFactorSummary,
 } from "@/lib/api"
+import { ActionCluster, SegmentedControl } from "@/components/dashboard/shell"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-type OverviewState = {
-  company: SnapshotEnvelope<CompanySnapshot> | null
-  country: SnapshotEnvelope<CountrySnapshot> | null
+type CommandCenterState = {
+  decisionQueue: SnapshotEnvelope<DecisionQueueSnapshot> | null
+  eventPulse: SnapshotEnvelope<EventPulse> | null
+  portfolioRisk: SnapshotEnvelope<PortfolioRiskSnapshot> | null
+  regimeHistory: SnapshotEnvelope<HistoricalRegimeSnapshot> | null
   regime: SnapshotEnvelope<MarketRegimeSnapshot> | null
   world: SnapshotEnvelope<WorldState> | null
 }
 
+const emptyState: CommandCenterState = {
+  decisionQueue: null,
+  eventPulse: null,
+  portfolioRisk: null,
+  regimeHistory: null,
+  regime: null,
+  world: null,
+}
+
+type CommandBoardView = "queue" | "history" | "context"
+
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
-  const [overview, setOverview] = useState<OverviewState>({
-    company: null,
-    country: null,
-    regime: null,
-    world: null,
-  })
+  const [missingPortfolio, setMissingPortfolio] = useState(false)
   const [pending, setPending] = useState<Record<string, PendingSnapshot>>({})
+  const [state, setState] = useState<CommandCenterState>(emptyState)
+  const [boardView, setBoardView] = useState<CommandBoardView>("queue")
 
   useEffect(() => {
     let active = true
 
-    async function loadOverview() {
+    async function loadCommandCenter() {
       try {
-        const [world, regime, company, country] = await Promise.all([
-          api.pollDataFabricV2<WorldState>("/world-state", (snapshot) => {
+        const request = <T,>(path: string, key: string) =>
+          api.pollDataFabricV2<T>(path, (snapshot) => {
             if (!active) return
             startTransition(() => {
-              setPending((current) => ({ ...current, world: snapshot }))
+              setPending((current) => ({ ...current, [key]: snapshot }))
             })
-          }),
-          api.pollDataFabricV2<MarketRegimeSnapshot>("/market/regime", (snapshot) => {
-            if (!active) return
-            startTransition(() => {
-              setPending((current) => ({ ...current, regime: snapshot }))
-            })
-          }),
-          api.pollDataFabricV2<CompanySnapshot>("/company/AAPL", (snapshot) => {
-            if (!active) return
-            startTransition(() => {
-              setPending((current) => ({ ...current, company: snapshot }))
-            })
-          }),
-          api.pollDataFabricV2<CountrySnapshot>("/country/IND", (snapshot) => {
-            if (!active) return
-            startTransition(() => {
-              setPending((current) => ({ ...current, country: snapshot }))
-            })
-          }),
-        ])
+          })
+
+        const portfolioResponse = await api.dataFabricV2.get<unknown>("/portfolio", {
+          params: { name: "primary", include_meta: true },
+          validateStatus: (status) => status === 200 || status === 202,
+        })
+
+        const hasPortfolio = portfolioResponse.status === 200
+        const [world, regime, eventPulse, regimeHistory, decisionQueue, portfolioRisk] =
+          await Promise.all([
+            request<WorldState>("/world-state", "world"),
+            request<MarketRegimeSnapshot>("/market/regime", "regime"),
+            request<EventPulse>("/events/pulse/global", "eventPulse"),
+            request<HistoricalRegimeSnapshot>("/history/similar-regimes", "regimeHistory"),
+            hasPortfolio
+              ? request<DecisionQueueSnapshot>("/decision/queue?name=primary", "decisionQueue")
+              : Promise.resolve(null),
+            hasPortfolio
+              ? request<PortfolioRiskSnapshot>("/portfolio/risk?name=primary", "portfolioRisk")
+              : Promise.resolve(null),
+          ])
 
         if (!active) return
         startTransition(() => {
-          setOverview({ world, regime, company, country })
+          setMissingPortfolio(!hasPortfolio)
+          setState({
+            world,
+            regime,
+            eventPulse,
+            regimeHistory,
+            decisionQueue,
+            portfolioRisk,
+          })
           setPending({})
         })
       } catch (error) {
-        console.error("Failed to load overview snapshots", error)
+        console.error("Failed to load command center snapshots", error)
       } finally {
         if (active) {
           setLoading(false)
@@ -79,195 +108,228 @@ export default function DashboardPage() {
       }
     }
 
-    loadOverview()
+    loadCommandCenter()
     return () => {
       active = false
     }
   }, [])
 
   const pendingItems = Object.values(pending)
-  const world = overview.world?.data
-  const regime = overview.regime?.data
-  const company = overview.company?.data
-  const country = overview.country?.data
+  const world = state.world?.data
+  const regime = state.regime?.data
+  const decisionQueue = state.decisionQueue?.data
+  const portfolioRisk = state.portfolioRisk?.data
+  const eventPulse = state.eventPulse?.data
+  const regimeHistory = state.regimeHistory?.data
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-end justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-3xl font-bold tracking-tight">Decision Console</h2>
-          <p className="max-w-3xl text-sm text-muted-foreground">
-            Snapshot-first overview of macro state, regime pressure, flagship company quality, and
-            India sovereign risk. Every card below reads from STRATOS internal data, not live
-            third-party APIs.
-          </p>
-        </div>
-      </div>
+    <div className="flex min-w-0 flex-col gap-4">
+      {missingPortfolio && (
+        <Card className="border-dashed">
+          <CardContent className="pt-6 text-sm text-muted-foreground">
+            No portfolio yet. Queue and risk stay inactive until a book is configured.
+          </CardContent>
+        </Card>
+      )}
 
       {pendingItems.length > 0 && (
         <Card className="border-dashed">
           <CardContent className="flex items-center gap-3 pt-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Preparing internal snapshots for{" "}
-            {pendingItems.map((item) => item.entity_id).join(", ")}.
+            Preparing {pendingItems.map((item) => item.entity_type).join(", ")}.
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title="Macro Pressure"
           icon={Globe2}
           value={
             world
-              ? `${(world.inflation * 100).toFixed(2)}% CPI / ${(world.interest_rate * 100).toFixed(2)}% rates`
-              : "Snapshot pending"
+              ? `${(world.inflation * 100).toFixed(2)}% CPI · ${(world.interest_rate * 100).toFixed(2)}% rates`
+              : loading
+                ? "Building"
+                : "Unavailable"
           }
           detail={
             world
-              ? `Liquidity ${world.liquidity_index.toFixed(2)} · Volatility ${world.volatility_index.toFixed(2)}`
-              : "Waiting for world-state snapshot"
+              ? `Liquidity ${world.liquidity_index.toFixed(2)} · VIX proxy ${world.volatility_index.toFixed(2)}`
+              : "Awaiting world-state snapshot"
           }
-          freshness={overview.world?.meta.freshness}
+          freshness={state.world?.meta.freshness}
         />
         <MetricCard
-          title="Market Regime"
+          title="Risk Regime"
           icon={Activity}
-          value={regime ? regime.regime_label : "Snapshot pending"}
+          value={regime ? regime.regime_label : loading ? "Building" : "Unavailable"}
           detail={
             regime
               ? `${(regime.confidence * 100).toFixed(0)}% confidence · ${formatRegimeFactorSummary(
                   regime.factor_summary
                 )}`
-              : "Waiting for market regime snapshot"
+              : "Awaiting market regime snapshot"
           }
-          freshness={overview.regime?.meta.freshness}
+          freshness={state.regime?.meta.freshness}
         />
         <MetricCard
-          title="Tracked Company"
-          icon={Building2}
-          value={company ? `${company.ticker} · ${company.name}` : "Snapshot pending"}
+          title="Event Pulse"
+          icon={Radar}
+          value={eventPulse ? eventPulse.headline : loading ? "Building" : "Unavailable"}
           detail={
-            company
-              ? `Moat ${company.moat_score.toFixed(2)} · Fraud ${company.fraud_score.toFixed(2)}`
-              : "Waiting for company feature snapshot"
+            eventPulse
+              ? `${eventPulse.event_count} events · dominant theme ${eventPulse.dominant_theme}`
+              : "Awaiting event pulse"
           }
-          freshness={overview.company?.meta.freshness}
-          href={company ? `/dashboard/company/${company.ticker}` : undefined}
+          freshness={state.eventPulse?.meta.freshness}
+          href="/dashboard/events"
         />
         <MetricCard
-          title="India Sovereign"
-          icon={ShieldCheck}
-          value={country ? `${country.country_code} profile ready` : "Snapshot pending"}
-          detail={
-            country
-              ? `Debt/GDP ${country.debt_gdp.toFixed(2)} · FX reserves ${country.fx_reserves.toFixed(2)}`
-              : "Waiting for country feature snapshot"
+          title="Portfolio Risk"
+          icon={ShieldAlert}
+          value={
+            portfolioRisk
+              ? `VaR ${(portfolioRisk.value_at_risk_95 * 100).toFixed(2)}%`
+              : loading
+                ? "Building"
+                : "Unavailable"
           }
-          freshness={overview.country?.meta.freshness}
-          href={country ? `/dashboard/country/${country.country_code}` : undefined}
+          detail={
+            portfolioRisk
+              ? `Daily vol ${(portfolioRisk.estimated_daily_volatility * 100).toFixed(2)}% · concentration ${(portfolioRisk.concentration_risk * 100).toFixed(0)}%`
+              : "Awaiting risk posture"
+          }
+          freshness={state.portfolioRisk?.meta.freshness}
+          href="/dashboard/portfolio"
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Priority Reads</CardTitle>
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <Card className="min-h-[360px]">
+          <CardHeader className="gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <CardTitle>Decision Board</CardTitle>
+            <SegmentedControl
+              value={boardView}
+              onChange={setBoardView}
+              items={[
+                { label: "Queue", value: "queue" },
+                { label: "History", value: "history" },
+                { label: "Context", value: "context" },
+              ]}
+            />
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <InsightPanel
-              title="Macro heatmap"
-              eyebrow={overview.world?.meta.freshness}
-              summary={
-                world
-                  ? world.inflation > 0.03
-                    ? "Inflation is still running above a comfortable range. Treat duration and richly valued growth with more caution."
-                    : "Inflation is contained enough to keep policy pressure from dominating every decision."
-                  : "Awaiting stored macro snapshot."
-              }
-              bullets={[
-                world ? `Geopolitical risk ${world.geopolitical_risk.toFixed(2)}` : "World state pending",
-                world ? `Commodity index ${world.commodity_index.toFixed(2)}` : "No commodity reading yet",
-              ]}
-            />
-            <InsightPanel
-              title="Company quality checkpoint"
-              eyebrow={overview.company?.meta.freshness}
-              summary={
-                company
-                  ? `${company.name} currently scores ${company.earnings_quality.toFixed(2)} on earnings quality with leverage at ${company.leverage_ratio.toFixed(2)}.`
-                  : "Awaiting stored company snapshot."
-              }
-              bullets={[
-                company
-                  ? `Free cash flow stability ${company.free_cash_flow_stability.toFixed(2)}`
-                  : "Feature build pending",
-                company ? `Moat score ${company.moat_score.toFixed(2)}` : "No moat signal yet",
-              ]}
-            />
-            <InsightPanel
-              title="India watch"
-              eyebrow={overview.country?.meta.freshness}
-              summary={
-                country
-                  ? `Political stability ${country.political_stability.toFixed(2)} with currency volatility ${country.currency_volatility.toFixed(2)}.`
-                  : "Awaiting stored India snapshot."
-              }
-              bullets={[
-                country ? `Fiscal deficit ${country.fiscal_deficit.toFixed(2)}` : "Country feature build pending",
-                country ? `FX reserves ${country.fx_reserves.toFixed(2)}` : "No reserve snapshot yet",
-              ]}
-            />
-            <InsightPanel
-              title="Action framing"
-              eyebrow={overview.regime?.meta.freshness}
-              summary={
-                regime
-                  ? `Use the ${regime.regime_label} regime as the default frame for portfolio and policy decisions.`
-                  : "Awaiting stored regime snapshot."
-              }
-              bullets={[
-                "Use the Macro tab for top-down risk context",
-                "Use Portfolio to inspect tracked market bars and price pressure",
-              ]}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Operator Checklist</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <ChecklistRow
-              title="Macro snapshot"
-              value={world ? "Ready" : loading ? "Building" : "Unavailable"}
-            />
-            <ChecklistRow
-              title="Regime snapshot"
-              value={regime ? "Ready" : loading ? "Building" : "Unavailable"}
-            />
-            <ChecklistRow
-              title="Company features"
-              value={company ? "Ready" : loading ? "Building" : "Unavailable"}
-            />
-            <ChecklistRow
-              title="Country features"
-              value={country ? "Ready" : loading ? "Building" : "Unavailable"}
-            />
-
-            <div className="rounded-lg border bg-muted/40 p-4">
-              <div className="mb-2 flex items-center gap-2 font-medium">
-                <ArrowUpRight className="h-4 w-4" />
-                Next best route
+          <CardContent className="content-auto">
+            {boardView === "queue" && (
+              <div className="grid gap-3 md:grid-cols-3">
+                <SignalPanel
+                  title="Top risks"
+                  items={decisionQueue?.top_risks.map((item) => `${item.title} · ${item.why}`) ?? []}
+                  fallback="No internal risk queue yet."
+                />
+                <SignalPanel
+                  title="Top opportunities"
+                  items={
+                    decisionQueue?.top_opportunities.map((item) => `${item.title} · ${item.why}`) ?? []
+                  }
+                  fallback="No opportunity ranking yet."
+                />
+                <SignalPanel
+                  title="Recommended actions"
+                  items={decisionQueue?.recommended_actions ?? []}
+                  fallback="No recommended actions yet."
+                />
               </div>
-              <p className="text-muted-foreground">
-                Ask the agent for a decision memo once the four core snapshots are ready. That keeps
-                orchestration grounded in internal data instead of ad hoc live fetches.
-              </p>
-            </div>
+            )}
+
+            {boardView === "history" && (
+              <div className="quiet-scroll max-h-[320px] space-y-3 overflow-y-auto pr-1">
+                {regimeHistory?.analogs?.length ? (
+                  regimeHistory.analogs.slice(0, 4).map((analog) => (
+                    <div
+                      key={`${analog.regime_label}-${analog.as_of}`}
+                      className="rounded-lg border bg-muted/25 p-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                    <div className="font-medium">{analog.regime_label}</div>
+                        <span className="text-xs text-muted-foreground">
+                          {(analog.similarity * 100).toFixed(0)}% similar
+                        </span>
+                      </div>
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        {new Date(analog.as_of).toLocaleDateString()} ·{" "}
+                        {formatRegimeFactorSummary(analog.factor_summary)}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    {loading ? "Building historical analogs..." : "No stored regime analogs yet."}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {boardView === "context" && (
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  {world && regime
+                    ? `${regime.regime_label} with ${(world.inflation * 100).toFixed(2)}% inflation and ${(world.interest_rate * 100).toFixed(2)}% policy rates.`
+                    : "Macro and regime context is still building."}
+                </div>
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  {eventPulse
+                    ? `${eventPulse.dominant_theme} is the dominant pulse across ${eventPulse.event_count} internal events.`
+                    : "Event pulse is still building."}
+                </div>
+                <ActionCluster
+                  items={[
+                    { href: "/dashboard/portfolio", label: "Open portfolio", tone: "outline" },
+                    { href: "/dashboard/agent", label: "Open agent", tone: "outline" },
+                  ]}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        <div className="min-w-0 space-y-4 xl:sticky xl:top-24 xl:self-start">
+          <Card>
+            <CardHeader>
+              <CardTitle>Watchlist</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {(decisionQueue?.watchlist_changes ?? []).length > 0 ? (
+                decisionQueue?.watchlist_changes.slice(0, 4).map((item) => (
+                  <div
+                    key={item}
+                    className="flex items-start gap-3 rounded-lg border bg-muted/20 p-3 text-sm"
+                  >
+                    <CandlestickChart className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span>{item}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  {loading ? "Building watchlist changes..." : "No watchlist changes queued yet."}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Next</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ActionCluster
+                items={[
+                  { href: "/dashboard/portfolio", label: "Stress the book" },
+                  { href: "/dashboard/agent", label: "Write memo", tone: "outline" },
+                ]}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
@@ -289,21 +351,21 @@ function MetricCard({
   href?: string
 }) {
   const content = (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-        <div className="space-y-1">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-          {freshness && (
-            <span className="inline-flex rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              {freshness}
-            </span>
-          )}
-        </div>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+    <Card className="h-full overflow-hidden">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Icon className="h-5 w-5" />
+          {title}
+        </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="text-xl font-semibold leading-tight">{value}</div>
-        <p className="mt-2 text-sm text-muted-foreground">{detail}</p>
+      <CardContent className="space-y-3">
+        <div className="break-words text-xl font-semibold tracking-[-0.03em]">{value}</div>
+        <div className="break-words text-xs leading-5 text-muted-foreground">{detail}</div>
+        {freshness && (
+          <span className="inline-flex rounded-full border border-border/80 bg-white/75 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            {freshness}
+          </span>
+        )}
       </CardContent>
     </Card>
   )
@@ -313,47 +375,35 @@ function MetricCard({
   }
 
   return (
-    <Link className="block transition-transform hover:-translate-y-0.5" href={href}>
+    <Link className="block transition-transform duration-200 motion-reduce:transition-none hover:-translate-y-0.5" href={href}>
       {content}
     </Link>
   )
 }
 
-function InsightPanel({
+function SignalPanel({
   title,
-  eyebrow,
-  summary,
-  bullets,
+  items,
+  fallback,
 }: {
   title: string
-  eyebrow?: string
-  summary: string
-  bullets: string[]
+  items: string[]
+  fallback: string
 }) {
   return (
-    <div className="rounded-xl border p-4">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="font-medium">{title}</div>
-        {eyebrow && <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{eyebrow}</div>}
+    <div className="rounded-lg border bg-muted/20 p-3">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        {title}
       </div>
-      <p className="text-sm text-muted-foreground">{summary}</p>
-      <div className="mt-3 space-y-2 text-sm">
-        {bullets.map((bullet) => (
-          <div key={bullet} className="flex items-start gap-2">
-            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-foreground/50" />
-            <span>{bullet}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function ChecklistRow({ title, value }: { title: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between border-b pb-2 last:border-b-0 last:pb-0">
-      <span className="text-muted-foreground">{title}</span>
-      <span className="font-medium">{value}</span>
+      {items.length > 0 ? (
+        <div className="space-y-2 text-sm">
+          {items.map((item) => (
+            <div key={item}>{item}</div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-sm text-muted-foreground">{fallback}</div>
+      )}
     </div>
   )
 }

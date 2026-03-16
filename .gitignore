@@ -1,55 +1,120 @@
-# ── Dependencies ──
-node_modules/
-.pnpm-store/
-__pycache__/
-*.pyc
-*.pyo
-.venv/
-venv/
-target/
+# ─── System & OS ─────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+desktop.ini
+thumbs.db
+$RECYCLE.BIN/
 
-# ── Build ──
-dist/
-build/
-*.egg-info/
-.next/
-out/
-
-# ── IDE ──
-.idea/
+# ─── IDE & Editors ───────────────────────────────────────────────────────────
 .vscode/
+*.code-workspace
+.history/
+.idea/
 *.swp
 *.swo
-.DS_Store
+*~
+*.bak
+.project
+.settings/
+.classpath
+
+# ─── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+jspm_packages/
+.pnpm-store/
+.npm
+.yarn-integrity
+.bun/
+.parcel-cache/
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.env/
+target/
+smart-contracts/lib/
+!smart-contracts/lib/forge-std/
+
+# ─── Build & Artifacts ────────────────────────────────────────────────────────
+dist/
+build/
+bin/
+obj/
+out/
+.next/
+.next-*/
+.cache/
+.turbo/
+.vercel/
+.tsbuildinfo
 *.tsbuildinfo
-
-# ── Environment ──
-.env
-.env.local
-.env.*.local
-.local_docker/
-**/.pyre_configuration.local
-smart-contracts/lib/forge-std/
-
-# ── Testing ──
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pyre_configuration.local
+.tox/
+.nox/
+.coverage
 coverage/
 htmlcov/
-.pytest_cache/
-.coverage
+nosetests.xml
+pip-log.txt
+pip-delete-this-directory.txt
 
-# ── ML Artifacts ──
+# ─── Environment & Secrets ────────────────────────────────────────────────────
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+*.pem
+*.key
+*.cert
+*.pfx
+.local_docker/
+.local_tmp/
+
+# ─── ML & Data ────────────────────────────────────────────────────────────────
 ml/models/
 *.pt
 *.pth
 *.onnx
 *.pkl
 *.joblib
+*.npy
+*.npz
+*.h5
 
-# ── Infrastructure ──
-*.tfstate
-*.tfstate.backup
+# ─── Infrastructure (Terraform/Forge) ─────────────────────────────────────────
 .terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+.forge/
+cache/
+artifacts/
 
-# ── Logs ──
+# ─── Logs & Misc ──────────────────────────────────────────────────────────────
 *.log
 logs/
+tmp/
+temp/
+.eslintcache
+.stylelintcache
+.prettiercache
+

@@ -17,6 +17,7 @@
         "clsx": "^2.1",
         "lucide-react": "^0.378",
         "next": "^14.2",
+        "pg": "^8.20.0",
         "react": "^18.3",
         "react-dom": "^18.3",
         "recharts": "^2.12",

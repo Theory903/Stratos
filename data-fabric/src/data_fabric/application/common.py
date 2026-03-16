@@ -43,7 +43,19 @@ class FreshnessPolicy:
         "company_filings": timedelta(hours=24),
         "company_news": timedelta(hours=24),
         "policy": timedelta(minutes=30),
+        "events_feed": timedelta(minutes=30),
+        "events_clusters": timedelta(minutes=30),
+        "events_pulse": timedelta(minutes=30),
         "market_regime": timedelta(minutes=15),
+        "history_regimes": timedelta(hours=6),
+        "compare_metric": timedelta(hours=6),
+        "compare_entity": timedelta(hours=6),
+        "anomaly": timedelta(hours=6),
+        "portfolio": timedelta(minutes=15),
+        "portfolio_exposures": timedelta(minutes=15),
+        "portfolio_risk": timedelta(minutes=15),
+        "portfolio_decision_log": timedelta(minutes=15),
+        "decision_queue": timedelta(minutes=15),
     }
 
     @classmethod
@@ -66,4 +78,3 @@ class FreshnessPolicy:
                 return timedelta(minutes=15)
             return timedelta(hours=12)
         return cls._DEFAULT_WINDOWS.get(normalized, timedelta(hours=24))
-

@@ -20,7 +20,7 @@ type CompanyWorkspaceState = {
 }
 
 export default function CompanyWorkspacePage() {
-  const params = useParams<{ ticker: string }>()
+  const params = useParams<{ ticker: string }>() ?? { ticker: "" }
   const ticker = String(params.ticker || "").toUpperCase()
 
   const [loading, setLoading] = useState(true)

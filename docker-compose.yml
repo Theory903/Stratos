@@ -48,6 +48,44 @@ services:
       timeout: 5s
       retries: 5
 
+  qdrant:
+    image: qdrant/qdrant:v1.13.4
+    container_name: stratos-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bash",
+          "-lc",
+          "exec 3<>/dev/tcp/127.0.0.1/6333 && printf 'GET /healthz HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: stratos-keycloak
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./infra/keycloak:/opt/keycloak/data/import:ro
+    healthcheck:
+      test: ["CMD", "bash", "-lc", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
   redis:
     image: redis:7-alpine
     container_name: stratos-redis
@@ -108,6 +146,8 @@ services:
       DF_S3_ACCESS_KEY: minioadmin
       DF_S3_SECRET_KEY: minioadmin
       DF_S3_BUCKET: stratos-data
+      DF_QDRANT_URL: http://qdrant:6333
+      DF_KEYCLOAK_URL: http://keycloak:8080
       FRED_API_KEY: ${FRED_API_KEY:-}
       POLYGON_API_KEY: ${POLYGON_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
@@ -125,6 +165,10 @@ services:
       mongo:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -147,6 +191,8 @@ services:
       DF_S3_ACCESS_KEY: minioadmin
       DF_S3_SECRET_KEY: minioadmin
       DF_S3_BUCKET: stratos-data
+      DF_QDRANT_URL: http://qdrant:6333
+      DF_KEYCLOAK_URL: http://keycloak:8080
       FRED_API_KEY: ${FRED_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
       POLYGON_API_KEY: ${POLYGON_API_KEY:-}
@@ -173,6 +219,8 @@ services:
       DF_S3_ACCESS_KEY: minioadmin
       DF_S3_SECRET_KEY: minioadmin
       DF_S3_BUCKET: stratos-data
+      DF_QDRANT_URL: http://qdrant:6333
+      DF_KEYCLOAK_URL: http://keycloak:8080
       FRED_API_KEY: ${FRED_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
       POLYGON_API_KEY: ${POLYGON_API_KEY:-}
@@ -199,6 +247,8 @@ services:
       DF_S3_ACCESS_KEY: minioadmin
       DF_S3_SECRET_KEY: minioadmin
       DF_S3_BUCKET: stratos-data
+      DF_QDRANT_URL: http://qdrant:6333
+      DF_KEYCLOAK_URL: http://keycloak:8080
       FRED_API_KEY: ${FRED_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
       POLYGON_API_KEY: ${POLYGON_API_KEY:-}
@@ -225,6 +275,8 @@ services:
       DF_S3_ACCESS_KEY: minioadmin
       DF_S3_SECRET_KEY: minioadmin
       DF_S3_BUCKET: stratos-data
+      DF_QDRANT_URL: http://qdrant:6333
+      DF_KEYCLOAK_URL: http://keycloak:8080
       FRED_API_KEY: ${FRED_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
       POLYGON_API_KEY: ${POLYGON_API_KEY:-}
@@ -251,6 +303,8 @@ services:
       DF_S3_ACCESS_KEY: minioadmin
       DF_S3_SECRET_KEY: minioadmin
       DF_S3_BUCKET: stratos-data
+      DF_QDRANT_URL: http://qdrant:6333
+      DF_KEYCLOAK_URL: http://keycloak:8080
       FRED_API_KEY: ${FRED_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
       POLYGON_API_KEY: ${POLYGON_API_KEY:-}
@@ -315,6 +369,8 @@ services:
       ORCHESTRATOR_DATA_FABRIC_V2_URL: http://data-fabric:8000/api/v2
       ORCHESTRATOR_ML_SERVICE_URL: http://ml-service:8003/ml
       ORCHESTRATOR_NLP_SERVICE_URL: http://nlp-service:8004/nlp
+      ORCHESTRATOR_QDRANT_URL: http://qdrant:6333
+      ORCHESTRATOR_KEYCLOAK_URL: http://keycloak:8080
       ORCHESTRATOR_LLM_PROVIDER: ${ORCHESTRATOR_LLM_PROVIDER:-ollama}
       ORCHESTRATOR_OLLAMA_MODEL: ${ORCHESTRATOR_OLLAMA_MODEL:-kimi-k2.5:cloud}
       ORCHESTRATOR_OPENAI_MODEL: ${ORCHESTRATOR_OPENAI_MODEL:-gpt-4-turbo-preview}
@@ -322,6 +378,17 @@ services:
       ORCHESTRATOR_GROQ_MODEL: ${ORCHESTRATOR_GROQ_MODEL:-moonshotai/kimi-k2-instruct-0905}
       ORCHESTRATOR_GROQ_API_KEY: ${ORCHESTRATOR_GROQ_API_KEY:-}
       ORCHESTRATOR_GROQ_API_BASE: ${ORCHESTRATOR_GROQ_API_BASE:-https://api.groq.com/openai/v1}
+      ORCHESTRATOR_NVIDIA_MODEL: ${ORCHESTRATOR_NVIDIA_MODEL:-nvidia/nemotron-3-super-120b-a12b}
+      ORCHESTRATOR_NVIDIA_API_KEY: ${ORCHESTRATOR_NVIDIA_API_KEY:-}
+      ORCHESTRATOR_NVIDIA_TEMPERATURE: ${ORCHESTRATOR_NVIDIA_TEMPERATURE:-1.0}
+      ORCHESTRATOR_NVIDIA_TOP_P: ${ORCHESTRATOR_NVIDIA_TOP_P:-0.95}
+      ORCHESTRATOR_NVIDIA_MAX_TOKENS: ${ORCHESTRATOR_NVIDIA_MAX_TOKENS:-16384}
+      ORCHESTRATOR_NVIDIA_REASONING_BUDGET: ${ORCHESTRATOR_NVIDIA_REASONING_BUDGET:-16384}
+      ORCHESTRATOR_NVIDIA_ENABLE_THINKING: ${ORCHESTRATOR_NVIDIA_ENABLE_THINKING:-true}
+      LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-https://api.smith.langchain.com}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-stratos-orchestrator}
       OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
       PYTHONPATH: /app/src
       ORCHESTRATOR_DEBUG: "false"
@@ -354,6 +421,7 @@ volumes:
   minio_data:
   kafka_data:
   nlp_cache:
+  qdrant_data:
 
 networks:
   default:

@@ -191,11 +191,19 @@ export const api = {
     }
   },
 
-  streamOrchestrateV2: async (query: string, onEvent: (type: string, data: any) => void) => {
-    const response = await fetch(`${API_URLS.orchestrator}/orchestrate/v2/stream`, {
+  streamOrchestrateV3: async (
+    query: string,
+    onEvent: (type: string, data: any) => void,
+    options?: { threadId?: string; userId?: string }
+  ) => {
+    const response = await fetch(`${API_URLS.orchestrator}/orchestrate/v3/stream`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({
+        query,
+        thread_id: options?.threadId,
+        user_id: options?.userId,
+      }),
     })
 
     const reader = response.body?.getReader()
@@ -274,6 +282,142 @@ export interface MarketRegimeSnapshot {
   factor_summary: string | Record<string, string>
 }
 
+export interface EventItem {
+  title: string
+  summary: string
+  region: string
+  category: string
+  entities: string[]
+  urgency: number
+  importance: number
+}
+
+export interface EventCluster {
+  cluster_id: string
+  region: string
+  category: string
+  headline: string
+  event_count: number
+  importance: number
+}
+
+export interface EventPulse {
+  scope: string
+  headline: string
+  event_count: number
+  dominant_theme: string
+  average_urgency: number
+  average_importance: number
+  highlights: string[]
+}
+
+export interface CompareMetricSnapshot {
+  entity_type: string
+  entity_id: string
+  metric: string
+  current: number
+  average: number
+  minimum: number
+  maximum: number
+  percentile_rank: number
+  z_score: number
+  series: number[]
+}
+
+export interface CompareEntitySnapshot {
+  entity_type: string
+  entity_id: string
+  current: Record<string, number>
+  previous: Record<string, number> | null
+  deltas: Record<string, number>
+}
+
+export interface HistoricalRegimeSnapshot {
+  current: MarketRegimeSnapshot
+  analogs: Array<{
+    regime_label: string
+    confidence: number
+    similarity: number
+    as_of: string
+    factor_summary: string | Record<string, string>
+  }>
+}
+
+export interface AnomalySnapshot extends CompareMetricSnapshot {
+  severity: "low" | "medium" | "high"
+  explanation: string
+}
+
+export interface PortfolioPosition {
+  ticker: string
+  quantity: number
+  average_cost: number
+  asset_class: string
+}
+
+export interface PortfolioSnapshot {
+  name: string
+  benchmark: string
+  positions: PortfolioPosition[]
+  constraints: Record<string, unknown>
+}
+
+export interface PortfolioExposureSnapshot {
+  name: string
+  total_market_value: number
+  asset_class_exposure: Record<string, number>
+  top_positions: Array<{
+    ticker: string
+    quantity: number
+    average_cost: number
+    asset_class: string
+    last_price: number
+    market_value: number
+    weight: number
+  }>
+}
+
+export interface PortfolioRiskSnapshot {
+  name: string
+  estimated_daily_volatility: number
+  value_at_risk_95: number
+  concentration_risk: number
+  regime: MarketRegimeSnapshot | null
+  risk_flags: string[]
+}
+
+export interface PortfolioScenarioResult {
+  scenario: string
+  portfolio_name: string
+  estimated_total_pnl_impact: number
+  positions: Array<{
+    ticker: string
+    asset_class: string
+    shock: number
+    estimated_pnl_impact: number
+  }>
+}
+
+export interface PortfolioRebalanceResult {
+  portfolio_name: string
+  suggestions: Array<{
+    ticker: string
+    current_weight: number
+    target_weight: number
+    action: string
+  }>
+  rationale: string
+}
+
+export interface DecisionQueueSnapshot {
+  portfolio_name: string
+  top_risks: Array<{ title: string; why: string }>
+  top_opportunities: Array<{ title: string; why: string }>
+  watchlist_changes: string[]
+  recommended_actions: string[]
+  regime: MarketRegimeSnapshot | null
+}
+
 export function formatRegimeFactorSummary(
   factorSummary: MarketRegimeSnapshot["factor_summary"]
 ): string {
@@ -295,10 +439,22 @@ export interface PredictionRequest {
 }
 
 export interface AgentResponse {
+  decision?: string
   recommendation: string
   confidence_score: number
+  confidence_calibration?: string
   risk_band: string
   scenarios?: any[]
   scenario_tree?: any[]
   worst_case?: string
+  intent?: string
+  role?: string
+  summary?: string
+  key_findings?: string[]
+  historical_context?: string[]
+  portfolio_impact?: string[]
+  recommended_actions?: string[]
+  watch_items?: string[]
+  data_quality?: string[]
+  evidence_blocks?: Array<{ title: string; detail: string }>
 }

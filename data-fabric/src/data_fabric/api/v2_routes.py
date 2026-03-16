@@ -4,37 +4,87 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
 from data_fabric.api.deps import (
+    get_v2_anomaly_use_case,
+    get_v2_compare_entity_use_case,
+    get_v2_compare_metric_use_case,
+    get_v2_decision_queue_use_case,
+    get_v2_event_clusters_use_case,
+    get_v2_event_pulse_use_case,
+    get_v2_events_feed_use_case,
+    get_v2_events_search_use_case,
     get_v2_ingest_use_case,
     get_v2_market_regime_use_case,
+    get_v2_portfolio_decision_log_use_case,
+    get_v2_portfolio_exposure_use_case,
+    get_v2_portfolio_rebalance_use_case,
+    get_v2_portfolio_risk_use_case,
+    get_v2_portfolio_scenario_use_case,
+    get_v2_portfolio_use_case,
     get_v2_query_company_use_case,
     get_v2_query_country_use_case,
     get_v2_query_filings_use_case,
     get_v2_query_market_use_case,
     get_v2_query_news_use_case,
     get_v2_query_policy_events_use_case,
+    get_v2_similar_regimes_use_case,
+    get_v2_upsert_portfolio_use_case,
     get_v2_query_world_state_use_case,
     get_v2_search_policy_use_case,
 )
 from data_fabric.application import (
     IngestMarketDataUseCase,
+    QueryAnomalyUseCase,
     QueryCompanyFilingsUseCase,
     QueryCompanyNewsUseCase,
     QueryCompanyUseCase,
+    QueryCompareEntityUseCase,
+    QueryCompareMetricUseCase,
     QueryCountryUseCase,
+    QueryDecisionQueueUseCase,
+    QueryEventClustersUseCase,
+    QueryEventPulseUseCase,
+    QueryEventsFeedUseCase,
     QueryMarketHistoryUseCase,
     QueryMarketRegimeUseCase,
+    QueryPortfolioDecisionLogUseCase,
+    QueryPortfolioExposureUseCase,
+    QueryPortfolioRiskUseCase,
+    QueryPortfolioUseCase,
     QueryPolicyEventsUseCase,
+    QuerySimilarRegimesUseCase,
     QueryWorldStateUseCase,
+    RunPortfolioRebalanceUseCase,
+    RunPortfolioScenarioUseCase,
     SearchPolicyUseCase,
+    SearchEventsUseCase,
     SnapshotRead,
+    UpsertPortfolioUseCase,
 )
 from data_fabric.domain.entities import CompanyProfile, CountryProfile, MarketTick, WorldState
 
 router = APIRouter(tags=["Data Fabric V2"])
+
+
+class EventsSearchRequest(BaseModel):
+    query: str = Field(min_length=1)
+    scope: str = "global"
+
+
+class PortfolioPositionsRequest(BaseModel):
+    name: str = "primary"
+    benchmark: str = "SPY"
+    positions: list[dict[str, Any]]
+    constraints: dict[str, Any] | None = None
+
+
+class PortfolioScenarioRequest(BaseModel):
+    name: str = "primary"
+    scenario: str = "oil_sticky_india_btc"
 
 
 @router.post("/ingest/market")
@@ -148,6 +198,196 @@ async def search_policy_v2(
 ) -> JSONResponse | dict[str, Any]:
     result = await use_case.execute(q, scope=scope)
     return _snapshot_http_response(response, result, list, include_meta=include_meta)
+
+
+@router.get("/events/feed", response_model=None)
+async def get_events_feed_v2(
+    response: Response,
+    scope: str = "global",
+    include_meta: bool = Query(default=False),
+    use_case: QueryEventsFeedUseCase = Depends(get_v2_events_feed_use_case),
+) -> JSONResponse | dict[str, Any]:
+    result = await use_case.execute(scope)
+    return _snapshot_http_response(response, result, list, include_meta=include_meta)
+
+
+@router.post("/events/search", response_model=None)
+async def search_events_v2(
+    payload: EventsSearchRequest,
+    response: Response,
+    include_meta: bool = Query(default=False),
+    use_case: SearchEventsUseCase = Depends(get_v2_events_search_use_case),
+) -> JSONResponse | dict[str, Any]:
+    result = await use_case.execute(payload.query, scope=payload.scope)
+    return _snapshot_http_response(response, result, list, include_meta=include_meta)
+
+
+@router.get("/events/clusters", response_model=None)
+async def get_event_clusters_v2(
+    response: Response,
+    scope: str = "global",
+    include_meta: bool = Query(default=False),
+    use_case: QueryEventClustersUseCase = Depends(get_v2_event_clusters_use_case),
+) -> JSONResponse | dict[str, Any]:
+    result = await use_case.execute(scope)
+    return _snapshot_http_response(response, result, list, include_meta=include_meta)
+
+
+@router.get("/events/pulse/{scope}", response_model=None)
+async def get_event_pulse_v2(
+    scope: str,
+    response: Response,
+    include_meta: bool = Query(default=False),
+    use_case: QueryEventPulseUseCase = Depends(get_v2_event_pulse_use_case),
+) -> JSONResponse | dict[str, Any]:
+    result = await use_case.execute(scope)
+    return _snapshot_http_response(response, result, lambda value: value, include_meta=include_meta)
+
+
+@router.get("/compare/metric", response_model=None)
+async def compare_metric_v2(
+    response: Response,
+    entity_type: str,
+    metric: str,
+    entity_id: str = "global",
+    limit: int = 24,
+    include_meta: bool = Query(default=False),
+    use_case: QueryCompareMetricUseCase = Depends(get_v2_compare_metric_use_case),
+) -> JSONResponse | dict[str, Any]:
+    result = await use_case.execute(
+        entity_type=entity_type,
+        metric=metric,
+        entity_id=entity_id,
+        limit=limit,
+    )
+    return _snapshot_http_response(response, result, lambda value: value, include_meta=include_meta)
+
+
+@router.get("/compare/entity", response_model=None)
+async def compare_entity_v2(
+    response: Response,
+    entity_type: str,
+    entity_id: str,
+    include_meta: bool = Query(default=False),
+    use_case: QueryCompareEntityUseCase = Depends(get_v2_compare_entity_use_case),
+) -> JSONResponse | dict[str, Any]:
+    result = await use_case.execute(entity_type=entity_type, entity_id=entity_id)
+    return _snapshot_http_response(response, result, lambda value: value, include_meta=include_meta)
+
+
+@router.get("/history/similar-regimes", response_model=None)
+async def similar_regimes_v2(
+    response: Response,
+    limit: int = 6,
+    include_meta: bool = Query(default=False),
+    use_case: QuerySimilarRegimesUseCase = Depends(get_v2_similar_regimes_use_case),
+) -> JSONResponse | dict[str, Any]:
+    result = await use_case.execute(limit=limit)
+    return _snapshot_http_response(response, result, lambda value: value, include_meta=include_meta)
+
+
+@router.get("/anomalies/{entity}", response_model=None)
+async def get_anomaly_v2(
+    entity: str,
+    response: Response,
+    entity_type: str = "market",
+    metric: str | None = None,
+    include_meta: bool = Query(default=False),
+    use_case: QueryAnomalyUseCase = Depends(get_v2_anomaly_use_case),
+) -> JSONResponse | dict[str, Any]:
+    result = await use_case.execute(entity=entity, entity_type=entity_type, metric=metric)
+    return _snapshot_http_response(response, result, lambda value: value, include_meta=include_meta)
+
+
+@router.get("/portfolio", response_model=None)
+async def get_portfolio_v2(
+    response: Response,
+    name: str = "primary",
+    include_meta: bool = Query(default=False),
+    use_case: QueryPortfolioUseCase = Depends(get_v2_portfolio_use_case),
+) -> JSONResponse | dict[str, Any]:
+    result = await use_case.execute(name)
+    return _snapshot_http_response(response, result, lambda value: value, include_meta=include_meta)
+
+
+@router.post("/portfolio/positions", response_model=None)
+async def upsert_portfolio_positions_v2(
+    payload: PortfolioPositionsRequest,
+    use_case: UpsertPortfolioUseCase = Depends(get_v2_upsert_portfolio_use_case),
+) -> dict[str, Any]:
+    snapshot = await use_case.execute(
+        name=payload.name,
+        benchmark=payload.benchmark,
+        positions=payload.positions,
+        constraints=payload.constraints,
+    )
+    return {"status": "ok", "portfolio": snapshot}
+
+
+@router.get("/portfolio/exposures", response_model=None)
+async def get_portfolio_exposures_v2(
+    response: Response,
+    name: str = "primary",
+    include_meta: bool = Query(default=False),
+    use_case: QueryPortfolioExposureUseCase = Depends(get_v2_portfolio_exposure_use_case),
+) -> JSONResponse | dict[str, Any]:
+    result = await use_case.execute(name)
+    return _snapshot_http_response(response, result, lambda value: value, include_meta=include_meta)
+
+
+@router.get("/portfolio/risk", response_model=None)
+async def get_portfolio_risk_v2(
+    response: Response,
+    name: str = "primary",
+    include_meta: bool = Query(default=False),
+    use_case: QueryPortfolioRiskUseCase = Depends(get_v2_portfolio_risk_use_case),
+) -> JSONResponse | dict[str, Any]:
+    result = await use_case.execute(name)
+    return _snapshot_http_response(response, result, lambda value: value, include_meta=include_meta)
+
+
+@router.post("/portfolio/scenario", response_model=None)
+async def run_portfolio_scenario_v2(
+    payload: PortfolioScenarioRequest,
+    use_case: RunPortfolioScenarioUseCase = Depends(get_v2_portfolio_scenario_use_case),
+) -> dict[str, Any]:
+    result = await use_case.execute(name=payload.name, scenario=payload.scenario)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Portfolio '{payload.name}' is not configured")
+    return {"status": "ok", "scenario": result}
+
+
+@router.post("/portfolio/rebalance", response_model=None)
+async def run_portfolio_rebalance_v2(
+    name: str = "primary",
+    use_case: RunPortfolioRebalanceUseCase = Depends(get_v2_portfolio_rebalance_use_case),
+) -> dict[str, Any]:
+    result = await use_case.execute(name=name)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Portfolio '{name}' is not configured")
+    return {"status": "ok", "rebalance": result}
+
+
+@router.get("/portfolio/decision-log", response_model=None)
+async def get_portfolio_decision_log_v2(
+    response: Response,
+    name: str = "primary",
+    include_meta: bool = Query(default=False),
+    use_case: QueryPortfolioDecisionLogUseCase = Depends(get_v2_portfolio_decision_log_use_case),
+) -> JSONResponse | dict[str, Any]:
+    result = await use_case.execute(name)
+    return _snapshot_http_response(response, result, list, include_meta=include_meta)
+
+
+@router.get("/decision/queue", response_model=None)
+async def get_decision_queue_v2(
+    response: Response,
+    name: str = "primary",
+    include_meta: bool = Query(default=False),
+    use_case: QueryDecisionQueueUseCase = Depends(get_v2_decision_queue_use_case),
+) -> JSONResponse | dict[str, Any]:
+    result = await use_case.execute(name)
+    return _snapshot_http_response(response, result, lambda value: value, include_meta=include_meta)
 
 
 def _snapshot_http_response(
