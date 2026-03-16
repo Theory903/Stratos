@@ -699,11 +699,13 @@ class LangChainAgentRuntime:
                 api_key=self._settings.groq_api_key,
                 base_url=self._settings.groq_api_base,
                 temperature=0.1,
+                max_tokens=self._settings.langchain_agent_max_tokens,
             )
         return ChatOpenAI(
             model=explicit_model or self._settings.openai_model,
             api_key=self._settings.openai_api_key,
             temperature=0.1,
+            max_tokens=self._settings.langchain_agent_max_tokens,
         )
 
     def _build_registry_tools(self) -> dict[str, list[StructuredTool]]:

@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     nvidia_enable_thinking: bool = True
     max_tool_budget: int = 8
     langchain_agent_model: str | None = None
+    langchain_agent_max_tokens: int = 1024
     langchain_enable_mcp: bool = False
     langchain_mcp_servers_json: str | None = None
     
