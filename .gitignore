@@ -21,11 +21,15 @@ out/
 *.swp
 *.swo
 .DS_Store
+*.tsbuildinfo
 
 # ── Environment ──
 .env
 .env.local
 .env.*.local
+.local_docker/
+**/.pyre_configuration.local
+smart-contracts/lib/forge-std/
 
 # ── Testing ──
 coverage/

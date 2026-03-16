@@ -1,0 +1,25 @@
+# Explicit Pyrefly config for the monorepo.
+# Pyre2/Pyrefly LSP does not read `.pyre_configuration`, so define the import roots here.
+
+project-includes = [
+  "data-fabric/src",
+  "data-fabric/tests",
+  "orchestrator/src",
+  "orchestrator/tests",
+  "ml/src",
+  "ml/tests",
+  "nlp/src",
+  "nlp/tests",
+]
+
+search-path = [
+  "data-fabric/src",
+  "orchestrator/src",
+  "ml/src",
+  "nlp/src",
+]
+
+disable-search-path-heuristics = true
+python-interpreter-path = "/opt/miniconda3/bin/python3"
+site-package-path = ["/opt/miniconda3/lib/python3.13/site-packages"]
+python-version = "3.13"

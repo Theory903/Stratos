@@ -1,66 +1,93 @@
-"""Orchestrator API routes — maps to PRD Section 9 endpoints."""
+"""Orchestrator API routes."""
 
-from fastapi import APIRouter
+from __future__ import annotations
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from stratos_orchestrator.api.deps import (
+    get_orchestrate_use_case,
+    get_stream_orchestrate_use_case,
+    get_v2_orchestrate_use_case,
+    get_v2_stream_orchestrate_use_case,
+)
+from stratos_orchestrator.application import OrchestrateUseCase, V2OrchestrateUseCase, V2StreamOrchestrateUseCase
+from stratos_orchestrator.application.stream_orchestrate import StreamOrchestrateUseCase
 
-router = APIRouter(tags=["Orchestrator"])
+
+router = APIRouter(tags=["Agent"])
 
 
-class QueryRequest(BaseModel):
+class OrchestrateRequest(BaseModel):
     query: str
-    context: dict = {}
 
 
-# ── Core PRD Endpoints ──
-
-@router.post("/macro/analyze-country")
-async def analyze_country(country_code: str = "US") -> dict:
-    return {"status": "not_implemented", "endpoint": "macro/analyze-country"}
-
-
-@router.post("/industry/analyze-sector")
-async def analyze_sector(sector: str = "") -> dict:
-    return {"status": "not_implemented", "endpoint": "industry/analyze-sector"}
+class OrchestrateResponse(BaseModel):
+    recommendation: str
+    confidence_score: float
+    confidence_calibration: str
+    risk_band: str
+    worst_case: str
+    scenarios: list[dict]
+    trace: dict | None = None  # Optional execution trace
 
 
-@router.post("/company/analyze")
-async def analyze_company(ticker: str = "") -> dict:
-    return {"status": "not_implemented", "endpoint": "company/analyze"}
+@router.post("/orchestrate", response_model=OrchestrateResponse)
+async def orchestrate_agent(
+    request: OrchestrateRequest,
+    use_case: Annotated[OrchestrateUseCase, Depends(get_orchestrate_use_case)],
+) -> OrchestrateResponse:
+    """Execute the AI agent to answer a strategic query."""
+    
+    memo = await use_case.execute(request.query)
+    
+    return OrchestrateResponse(
+        recommendation=memo.recommendation,
+        confidence_score=memo.confidence_band.score,
+        confidence_calibration=memo.confidence_band.calibration,
+        risk_band=memo.risk_band,
+        worst_case=memo.worst_case,
+        scenarios=memo.scenario_tree,
+    )
 
 
-@router.post("/portfolio/allocate")
-async def allocate_portfolio() -> dict:
-    return {"status": "not_implemented", "endpoint": "portfolio/allocate"}
+@router.post("/orchestrate/stream")
+async def orchestrate_agent_stream(
+    request: OrchestrateRequest,
+    use_case: Annotated[StreamOrchestrateUseCase, Depends(get_stream_orchestrate_use_case)],
+) -> StreamingResponse:
+    """Execute the AI agent and stream progress via SSE."""
+    
+    return StreamingResponse(
+        use_case.execute(request.query),
+        media_type="text/event-stream",
+    )
 
 
-@router.post("/policy/simulate")
-async def simulate_policy() -> dict:
-    return {"status": "not_implemented", "endpoint": "policy/simulate"}
+@router.post("/orchestrate/v2", response_model=OrchestrateResponse)
+async def orchestrate_agent_v2(
+    request: OrchestrateRequest,
+    use_case: Annotated[V2OrchestrateUseCase, Depends(get_v2_orchestrate_use_case)],
+) -> OrchestrateResponse:
+    memo = await use_case.execute(request.query)
+    return OrchestrateResponse(
+        recommendation=memo.recommendation,
+        confidence_score=memo.confidence_band.score,
+        confidence_calibration=memo.confidence_band.calibration,
+        risk_band=memo.risk_band,
+        worst_case=memo.worst_case,
+        scenarios=memo.scenario_tree,
+    )
 
 
-@router.post("/tax/optimize")
-async def optimize_tax() -> dict:
-    return {"status": "not_implemented", "endpoint": "tax/optimize"}
-
-
-@router.post("/geopolitics/simulate")
-async def simulate_geopolitics() -> dict:
-    return {"status": "not_implemented", "endpoint": "geopolitics/simulate"}
-
-
-@router.post("/fraud/scan")
-async def scan_fraud() -> dict:
-    return {"status": "not_implemented", "endpoint": "fraud/scan"}
-
-
-@router.get("/regime/current")
-async def current_regime() -> dict:
-    return {"status": "not_implemented", "endpoint": "regime/current"}
-
-
-# ── Agent Query Endpoint ──
-
-@router.post("/agent/query")
-async def agent_query(request: QueryRequest) -> dict:
-    """Natural language query → agent orchestration → structured memo."""
-    return {"status": "not_implemented", "query": request.query}
+@router.post("/orchestrate/v2/stream")
+async def orchestrate_agent_stream_v2(
+    request: OrchestrateRequest,
+    use_case: Annotated[V2StreamOrchestrateUseCase, Depends(get_v2_stream_orchestrate_use_case)],
+) -> StreamingResponse:
+    return StreamingResponse(
+        use_case.execute(request.query),
+        media_type="text/event-stream",
+    )

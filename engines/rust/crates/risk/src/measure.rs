@@ -1,7 +1,3 @@
-//! RiskMeasure trait — Interface Segregation: narrow per-metric interface.
+//! Re-export risk measures.
 
-/// Compute a single risk metric from return data.
-pub trait RiskMeasure: Send + Sync {
-    fn name(&self) -> &str;
-    fn compute(&self, returns: &[f64], confidence_level: f64) -> f64;
-}
+pub use crate::{ConditionalVaR, HistoricalVaR, MaxDrawdownMeasure, ParametricVaR, VolatilityMeasure};

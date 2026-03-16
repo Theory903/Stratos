@@ -32,7 +32,7 @@ class DetectRegimeUseCase:
     def __init__(self, classifier: RegimeClassifier) -> None:
         self._classifier = classifier
 
-    async def execute(self, features: np.ndarray) -> str:
+    async def execute(self, features: np.ndarray) -> tuple[str, float]:
         return self._classifier.classify(features)
 
 

@@ -1,22 +1,44 @@
-"""Orchestrator API — the unified STRATOS gateway."""
+"""FastAPI application factory."""
+
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from stratos_orchestrator.api.routes import router
 from stratos_orchestrator.config import Settings
+from stratos_orchestrator.logging import get_logger
+
+logger = get_logger(__name__)
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
-    settings = settings or Settings()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+    logger.info("orchestrator_startup")
+    yield
+    # Shutdown logic
+    logger.info("orchestrator_shutdown")
+
+
+def create_app() -> FastAPI:
+    settings = Settings()
+    
     app = FastAPI(
-        title="STRATOS Orchestrator",
+        title="STRATOS Agent Orchestrator",
+        description="LLM-driven financial agent",
         version="0.1.0",
-        description="Unified financial intelligence gateway",
+        lifespan=lifespan,
     )
-    app.include_router(router, prefix="/api/v1")
 
-    @app.get("/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok", "service": "orchestrator"}
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
+    app.include_router(router)
+    
     return app

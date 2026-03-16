@@ -10,6 +10,7 @@ from stratos_orchestrator.domain.entities import (
     TaskStatus,
 )
 from stratos_orchestrator.domain.ports import LLMProvider, OutputFormatter, ToolExecutor
+from stratos_orchestrator.application.v2 import V2OrchestrateUseCase, V2StreamOrchestrateUseCase
 
 
 class OrchestrateUseCase:
@@ -19,7 +20,7 @@ class OrchestrateUseCase:
         self,
         llm: LLMProvider,
         tools: ToolExecutor,
-        formatter: OutputFormatter,
+        formatter: OutputFormatter | None = None,
     ) -> None:
         self._llm = llm
         self._tools = tools
@@ -41,7 +42,7 @@ class OrchestrateUseCase:
 
         # Step 3: Synthesize into memo
         results = {t.tool_name: t.result for t in plan.tasks if t.result}
-        return await self._synthesize(query, results)
+        return await self._synthesize(plan, results)
 
     async def _plan(self, query: str) -> ExecutionPlan:
         """Use LLM to decompose query into tool calls."""
@@ -50,27 +51,57 @@ class OrchestrateUseCase:
                 {"role": "system", "content": "Decompose this financial query into tool calls."},
                 {"role": "user", "content": query},
             ],
-            schema={"type": "object", "properties": {"tasks": {"type": "array"}}},
+            schema={
+                "type": "object",
+                "properties": {
+                    "reasoning": {"type": "string"},
+                    "tasks": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "tool_name": {"type": "string"},
+                                "arguments": {"type": "object"},
+                            },
+                            "required": ["tool_name", "arguments"],
+                        },
+                    },
+                },
+                "required": ["tasks"],
+            },
         )
         tasks = [
-            AgentTask(tool_name=t.get("tool", ""), arguments=t.get("args", {}))
+            AgentTask(
+                tool_name=t.get("tool_name") or t.get("tool", ""),
+                arguments=t.get("arguments") or t.get("args", {}),
+            )
             for t in response.get("tasks", [])
         ]
-        return ExecutionPlan(query=query, tasks=tasks)
+        return ExecutionPlan(
+            query=query,
+            tasks=tasks,
+            reasoning=response.get("reasoning", ""),
+        )
 
-    async def _synthesize(self, query: str, results: dict) -> StrategicMemo:
+    async def _synthesize(self, plan: ExecutionPlan, results: dict) -> StrategicMemo:
         """Use LLM to synthesize results into a strategic memo."""
         synthesis = await self._llm.generate(
             messages=[
                 {"role": "system", "content": "Synthesize these tool results into a strategic memo."},
-                {"role": "user", "content": f"Query: {query}\nResults: {results}"},
+                {"role": "user", "content": f"Query: {plan.query}\nResults: {results}"},
             ]
         )
         return StrategicMemo(
-            query=query,
+            query=plan.query,
+            plan_summary=plan.reasoning or "Task summary pending.",
+            tasks=plan.tasks,
             recommendation=synthesis,
-            confidence=ConfidenceBand.from_score(0.0),  # TODO: calibrate
+            confidence_band=ConfidenceBand.from_score(0.0),  # TODO: calibrate
+            risk_policy_status="PASS",
             scenario_tree=[],
             worst_case="",
             risk_band="unknown",
         )
+
+
+__all__ = ["OrchestrateUseCase", "V2OrchestrateUseCase", "V2StreamOrchestrateUseCase"]

@@ -1,20 +1,28 @@
 import type { Metadata } from "next";
-import "@/styles/globals.css";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { cn } from "@/lib/utils";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-    title: "STRATOS — Financial Intelligence OS",
-    description:
-        "Unified financial–macro–geopolitical intelligence engine designed to quantify uncertainty across scales.",
+    title: "STRATOS | Financial Intelligence",
+    description: "Next-gen financial terminal powered by AI agents",
 };
 
 export default function RootLayout({
     children,
-}: {
+}: Readonly<{
     children: React.ReactNode;
-}) {
+}>) {
     return (
-        <html lang="en">
-            <body>{children}</body>
+        <html lang="en" suppressHydrationWarning>
+            <body className={cn(
+                "min-h-screen bg-background font-sans antialiased",
+                inter.className
+            )}>
+                {children}
+            </body>
         </html>
     );
 }

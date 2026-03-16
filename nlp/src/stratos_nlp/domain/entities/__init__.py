@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import StrEnum
 
 
-class Sentiment(StrEnum):
+class SentimentLabel(StrEnum):
     POSITIVE = "positive"
     NEGATIVE = "negative"
     NEUTRAL = "neutral"
@@ -14,24 +15,19 @@ class Sentiment(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class SentimentResult:
-    text: str
-    sentiment: Sentiment
-    score: float
-    model: str
+    """Sentiment analysis result."""
+    label: SentimentLabel
+    score: float  # [0, 1] confidence
+    logits: dict[str, float]
 
 
 @dataclass(frozen=True, slots=True)
 class AnalyzedDocument:
-    document_id: str
-    entities: list[dict[str, str]]
-    summary: str
-    key_metrics: dict[str, float]
-
-
-@dataclass(frozen=True, slots=True)
-class NarrativeShift:
-    topic: str
-    previous_sentiment: float
-    current_sentiment: float
-    shift_magnitude: float
-    description: str
+    """Processed document with embeddings and metadata."""
+    id: str
+    content: str
+    source: str
+    published_at: datetime
+    entities: list[str] = field(default_factory=list)
+    embedding: list[float] | None = None
+    sentiment: SentimentResult | None = None

@@ -1,32 +1,80 @@
-"""NLP application layer — use cases."""
+"""NLP application use cases."""
 
 from __future__ import annotations
 
-from stratos_nlp.domain.entities import NarrativeShift, SentimentResult, Sentiment
-from stratos_nlp.domain.ports import DocumentRetriever, EntityExtractor, SentimentScorer
+from typing import Protocol
+
+from stratos_nlp.domain.entities import AnalyzedDocument, SentimentResult
+from stratos_nlp.domain.ports import (
+    DocumentRetriever,
+    EntityExtractor,
+    SentimentScorer,
+    TextEmbedder,
+)
 
 
-class ScoreSentimentUseCase:
+class AnalyzeSentimentUseCase:
+    """Analyze sentiment of a text or batch of texts."""
+
     def __init__(self, scorer: SentimentScorer) -> None:
-        self._scorer = scorer
+        self.scorer = scorer
 
-    async def execute(self, text: str) -> SentimentResult:
-        score = self._scorer.score(text)
-        sentiment = Sentiment.POSITIVE if score > 0.1 else Sentiment.NEGATIVE if score < -0.1 else Sentiment.NEUTRAL
-        return SentimentResult(text=text[:100], sentiment=sentiment, score=score, model="default")
+    def execute(self, text: str) -> SentimentResult:
+        return self.scorer.score(text)
 
 
-class ParseEarningsUseCase:
+class ExtractEntitiesUseCase:
+    """Extract named entities from text."""
+
     def __init__(self, extractor: EntityExtractor) -> None:
-        self._extractor = extractor
+        self.extractor = extractor
 
-    async def execute(self, transcript: str) -> list[dict[str, str]]:
-        return self._extractor.extract(transcript)
+    def execute(self, text: str) -> list[str]:
+        return self.extractor.extract(text)
+
+
+class IndexDocumentUseCase:
+    """Process and index a document for RAG."""
+
+    def __init__(
+        self,
+        embedder: TextEmbedder,
+        retriever: DocumentRetriever,
+        extractor: EntityExtractor,
+        scorer: SentimentScorer,
+    ) -> None:
+        self.embedder = embedder
+        self.retriever = retriever
+        self.extractor = extractor
+        self.scorer = scorer
+
+    def execute(self, doc_id: str, content: str, source: str) -> AnalyzedDocument:
+        # Pipelined processing
+        entities = self.extractor.extract(content)
+        sentiment = self.scorer.score(content)
+        embedding = self.embedder.embed(content)
+        
+        doc = AnalyzedDocument(
+            id=doc_id,
+            content=content,
+            source=source,
+            published_at=datetime.now(),
+            entities=entities,
+            embedding=embedding,
+            sentiment=sentiment,
+        )
+        
+        self.retriever.index(doc)
+        return doc
 
 
 class RetrieveContextUseCase:
-    def __init__(self, retriever: DocumentRetriever) -> None:
-        self._retriever = retriever
+    """Retrieve relevant documents for a query."""
 
-    async def execute(self, query: str, top_k: int = 5) -> list[dict]:
-        return self._retriever.retrieve(query, top_k=top_k)
+    def __init__(self, embedder: TextEmbedder, retriever: DocumentRetriever) -> None:
+        self.embedder = embedder
+        self.retriever = retriever
+
+    def execute(self, query: str, limit: int = 5) -> list[AnalyzedDocument]:
+        query_vec = self.embedder.embed(query)
+        return self.retriever.search(query_vec, limit=limit)

@@ -18,6 +18,8 @@ class LLMProvider(Protocol):
         self, messages: list[dict[str, str]], schema: dict, **kwargs: Any
     ) -> dict: ...
 
+    async def astream(self, messages: list[dict[str, str]], **kwargs: Any): ...
+
 
 @runtime_checkable
 class ToolExecutor(Protocol):
@@ -25,6 +27,7 @@ class ToolExecutor(Protocol):
 
     async def execute(self, tool_name: str, arguments: dict) -> dict: ...
     def list_tools(self) -> list[str]: ...
+    def get_schemas(self) -> list[dict]: ...
 
 
 @runtime_checkable

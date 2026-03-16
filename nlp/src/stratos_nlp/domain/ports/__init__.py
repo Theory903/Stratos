@@ -1,36 +1,41 @@
-"""NLP domain ports — narrow interfaces for NLP capabilities.
-
-Each protocol is deliberately minimal (Interface Segregation).
-Concrete adapters (FinBERT, spaCy, etc.) implement these.
-"""
+"""NLP domain ports — abstract interfaces."""
 
 from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from stratos_nlp.domain.entities import AnalyzedDocument, SentimentResult
+
 
 @runtime_checkable
 class SentimentScorer(Protocol):
-    """Score text for financial sentiment."""
-    def score(self, text: str) -> float: ...
-    def score_batch(self, texts: list[str]) -> list[float]: ...
+    """Score sentiment of text (ISP: score only)."""
+
+    def name(self) -> str: ...
+    def score(self, text: str) -> SentimentResult: ...
+    def score_batch(self, texts: list[str]) -> list[SentimentResult]: ...
 
 
 @runtime_checkable
 class EntityExtractor(Protocol):
-    """Extract named entities from text."""
-    def extract(self, text: str) -> list[dict[str, str]]: ...
+    """Extract named entities from text (ISP: extract only)."""
+
+    def name(self) -> str: ...
+    def extract(self, text: str) -> list[str]: ...
 
 
 @runtime_checkable
 class TextEmbedder(Protocol):
-    """Embed text into vector space."""
+    """Convert text to vector embeddings (ISP: embed only)."""
+
+    def name(self) -> str: ...
     def embed(self, text: str) -> list[float]: ...
     def embed_batch(self, texts: list[str]) -> list[list[float]]: ...
 
 
 @runtime_checkable
 class DocumentRetriever(Protocol):
-    """Retrieve relevant documents from vector store (RAG)."""
-    def retrieve(self, query: str, top_k: int = 5) -> list[dict]: ...
-    def index(self, document_id: str, text: str, metadata: dict) -> None: ...
+    """Retrieve documents from vector store (ISP: retrieve only)."""
+
+    def index(self, document: AnalyzedDocument) -> None: ...
+    def search(self, query_embedding: list[float], limit: int = 5) -> list[AnalyzedDocument]: ...

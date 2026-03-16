@@ -3,7 +3,7 @@
 //! Engine crates implement these traits. Consumers depend on traits, not
 //! concrete implementations (D in SOLID). Traits are narrow (I in SOLID).
 
-use crate::types::{ConfidenceBand, Portfolio, WorldState};
+use crate::types::{ConfidenceBand, WorldState};
 
 /// An engine that can compute/score something (Single Responsibility).
 pub trait Engine: Send + Sync {
@@ -60,6 +60,20 @@ pub struct AllocationConstraints {
     pub max_weight: f64,
     pub target_return: Option<f64>,
     pub max_risk: Option<f64>,
+    
+    // Institutional Grade: Liquidity & Cost
+    /// Existing weights for turnover/cost penalty calculation
+    pub current_weights: Option<Vec<f64>>,
+    /// Fixed transaction cost (e.g., 0.001 for 10bps)
+    pub transaction_cost: f64,
+    /// Nonlinear slippage coefficient (impact per unit turnover)
+    pub slippage_coeff: f64,
+    /// Nonlinear slippage exponent (e.g., 1.5 or 2.0)
+    pub slippage_exponent: f64,
+    /// Multiplier for all costs based on system regime (Subsystem G)
+    pub cost_regime_multiplier: f64,
+    /// Max weight per asset based on liquidity (ADV)
+    pub liquidity_limit: Option<Vec<f64>>,
 }
 
 impl Default for AllocationConstraints {
@@ -69,6 +83,12 @@ impl Default for AllocationConstraints {
             max_weight: 1.0,
             target_return: None,
             max_risk: None,
+            current_weights: None,
+            transaction_cost: 0.0,
+            slippage_coeff: 0.0,
+            slippage_exponent: 1.5,
+            cost_regime_multiplier: 1.0,
+            liquidity_limit: None,
         }
     }
 }

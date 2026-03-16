@@ -1,0 +1,10 @@
+# Service-local Pyrefly config so editor sessions opened at `data-fabric/`
+# can still resolve `data_fabric.*` imports.
+
+project-includes = ["src", "tests"]
+search-path = ["src"]
+
+disable-search-path-heuristics = true
+python-interpreter-path = "/opt/miniconda3/bin/python3"
+site-package-path = ["/opt/miniconda3/lib/python3.13/site-packages"]
+python-version = "3.13"

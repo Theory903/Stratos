@@ -1,0 +1,48 @@
+{
+  "source_directories": [
+    {
+      "import_root": "",
+      "source": "data-fabric/src"
+    },
+    {
+      "import_root": "",
+      "source": "orchestrator/src"
+    },
+    {
+      "import_root": "",
+      "source": "ml/src"
+    },
+    {
+      "import_root": "",
+      "source": "nlp/src"
+    }
+  ],
+  "search_path": [
+    {
+      "import_root": "",
+      "source": "data-fabric/src"
+    },
+    {
+      "import_root": "",
+      "source": "orchestrator/src"
+    },
+    {
+      "import_root": "",
+      "source": "ml/src"
+    },
+    {
+      "import_root": "",
+      "source": "nlp/src"
+    }
+  ],
+  "exclude": [
+    ".git",
+    ".local_docker",
+    ".local_tmp",
+    "frontend",
+    "smart-contracts",
+    "contracts",
+    "engines"
+  ],
+  "site_package_search_strategy": "pep561"
+}

@@ -1,18 +1,36 @@
-"""NLP API — FastAPI app factory."""
+"""NLP service application factory."""
 
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
+
+import structlog
 from fastapi import FastAPI
 
 from stratos_nlp.api.routes import router
 from stratos_nlp.config import Settings
 
+logger = structlog.get_logger()
 
-def create_app(settings: Settings | None = None) -> FastAPI:
-    settings = settings or Settings()
-    app = FastAPI(title="STRATOS NLP Service", version="0.1.0")
-    app.include_router(router, prefix="/api/v1")
 
-    @app.get("/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok", "service": "nlp"}
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    settings = Settings()
+    logger.info("nlp_service.startup", port=settings.port)
+    yield
+    logger.info("nlp_service.shutdown")
 
+
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="STRATOS NLP Service",
+        description="Financial sentiment, entity extraction, and RAG pipeline",
+        version="0.1.0",
+        lifespan=lifespan,
+    )
+    app.include_router(router)
     return app
+
+
+app = create_app()

@@ -1,24 +1,33 @@
-"""Orchestrator service configuration."""
+"""Orchestrator configuration."""
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = {"env_prefix": "ORCH_", "env_file": ".env"}
-
-    host: str = "0.0.0.0"
+    """Orchestrator settings."""
+    
     port: int = 8005
     debug: bool = False
-
-    # LLM
-    llm_provider: str = "openai"  # openai, anthropic, local
-    openai_api_key: str = ""
-    anthropic_api_key: str = ""
-    openai_model: str = "gpt-4o"
-    anthropic_model: str = "claude-sonnet-4-20250514"
-
-    # Downstream services
-    data_fabric_url: str = "http://localhost:8001"
-    engines_java_url: str = "http://localhost:8002"
-    ml_service_url: str = "http://localhost:8003"
-    nlp_service_url: str = "http://localhost:8004"
+    
+    # Service URLs
+    data_fabric_url: str = "http://localhost:8000/api/v1"
+    data_fabric_v2_url: str = "http://localhost:8000/api/v2"
+    ml_service_url: str = "http://localhost:8003/ml"
+    nlp_service_url: str = "http://localhost:8004/nlp"
+    
+    # LLM Config
+    llm_provider: str = "ollama"  # openai, anthropic, ollama
+    ollama_model: str = "kimi-k2.5:cloud"
+    openai_model: str = "gpt-4-turbo-preview"
+    openai_api_key: str | None = None
+    anthropic_api_key: str | None = None
+    groq_model: str = "moonshotai/kimi-k2-instruct-0905"
+    groq_api_key: str | None = None
+    groq_api_base: str = "https://api.groq.com/openai/v1"
+    max_tool_budget: int = 8
+    
+    model_config = SettingsConfigDict(
+        env_prefix="ORCHESTRATOR_",
+        env_file=".env",
+        extra="ignore",
+    )
