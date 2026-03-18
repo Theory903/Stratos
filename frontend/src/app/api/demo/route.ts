@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { AppSession, SAMPLE_PORTFOLIO, createDefaultDraft, createDefaultWorkspaceState } from "@/lib/app-state"
+import { DEMO_MODE_ENABLED } from "@/lib/runtime-flags"
 import { setDraftCookie, setSessionCookie, setWorkspaceCookie } from "@/lib/server/app-session"
 
 const DATA_FABRIC_V2 =
   (process.env.NEXT_PUBLIC_DATA_FABRIC_URL ?? "http://localhost:8000").replace(/\/+$/, "") + "/api/v2"
 
 export async function GET(request: NextRequest) {
+  if (!DEMO_MODE_ENABLED) {
+    return NextResponse.json({ error: "Demo workspace is disabled." }, { status: 404 })
+  }
+
   const session: AppSession = {
     userId: "demo-user",
     name: "Sample PM",

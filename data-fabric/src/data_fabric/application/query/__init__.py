@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from statistics import mean, pstdev
 from typing import Any
@@ -125,9 +126,59 @@ class QueryCompanyNewsUseCase:
     async def execute(self, ticker: str) -> SnapshotRead[list[dict[str, Any]]]:
         normalized = ticker.upper()
         record = await self.documents.get_company_news_snapshot(normalized)
+        if record is None:
+            record = await self.documents.get_normalized_news(normalized)
         return await _collection_response(
             record=record,
-            entity_type="company_news",
+            entity_type="news",
+            entity_id=normalized,
+            refreshes=self.refreshes,
+        )
+
+
+@dataclass(slots=True)
+class QuerySocialFeedUseCase:
+    documents: Any
+    refreshes: Any
+
+    async def execute(self, entity: str) -> SnapshotRead[list[dict[str, Any]]]:
+        normalized = entity.upper()
+        record = await self.documents.get_normalized_event_stream("social", normalized)
+        return await _collection_response(
+            record=record,
+            entity_type="social",
+            entity_id=normalized,
+            refreshes=self.refreshes,
+        )
+
+
+@dataclass(slots=True)
+class QueryExchangeAnnouncementsUseCase:
+    documents: Any
+    refreshes: Any
+
+    async def execute(self, entity: str) -> SnapshotRead[list[dict[str, Any]]]:
+        normalized = entity.upper()
+        record = await self.documents.get_normalized_event_stream("exchange_announcements", normalized)
+        return await _collection_response(
+            record=record,
+            entity_type="announcements",
+            entity_id=normalized,
+            refreshes=self.refreshes,
+        )
+
+
+@dataclass(slots=True)
+class QueryOrderBookUseCase:
+    documents: Any
+    refreshes: Any
+
+    async def execute(self, instrument: str) -> SnapshotRead[dict[str, Any]]:
+        normalized = instrument.upper()
+        snapshot = await self.documents.get_order_book_snapshot(normalized)
+        return await _snapshot_response(
+            snapshot=snapshot,
+            entity_type="orderbook",
             entity_id=normalized,
             refreshes=self.refreshes,
         )
@@ -734,97 +785,358 @@ class QueryDecisionQueueUseCase:
         )
 
 
+@dataclass(slots=True)
+class QueryProviderHealthUseCase:
+    providers: dict[str, Any]
+    settings: Any
+
+    async def execute(self) -> SnapshotRead[dict[str, Any]]:
+        from datetime import UTC, datetime
+
+        checks = await asyncio.gather(
+            *(self._check_provider(name, provider) for name, provider in self.providers.items())
+        )
+        healthy = sum(1 for item in checks if item["status"] == "healthy")
+        degraded = sum(1 for item in checks if item["status"] == "degraded")
+        unavailable = sum(1 for item in checks if item["status"] == "unavailable")
+        overall_status = "healthy" if degraded == 0 and unavailable == 0 else "degraded" if healthy > 0 else "down"
+        return SnapshotRead(
+            status="ready",
+            data={
+                "overall_status": overall_status,
+                "summary": (
+                    f"{healthy} healthy, {degraded} degraded, {unavailable} unavailable providers across market, event, and policy coverage."
+                ),
+                "checked_at": datetime.now(UTC).isoformat(),
+                "providers": checks,
+                "notes": [
+                    "Health checks are live reachability checks where provider adapters support them.",
+                    "Unavailable means credentials or feed configuration are missing in this environment.",
+                ],
+                "overview": {
+                    "total": len(checks),
+                    "healthy": healthy,
+                    "degraded": degraded,
+                    "unavailable": unavailable,
+                    "coverage_ratio": healthy / len(checks) if checks else 0.0,
+                },
+                "primary_markets": {
+                    "india_equities": "upstox",
+                    "crypto": "coinapi",
+                    "fallback_market": "massive",
+                    "macro": "fred",
+                },
+            },
+            meta=SnapshotMeta(
+                entity_type="providers_health",
+                entity_id="global",
+                as_of=None,
+                computed_at=None,
+                freshness="fresh",
+                refresh_enqueued=False,
+                feature_version="provider-health-v1",
+                provider_set=("internal",),
+            ),
+        )
+
+    async def _check_provider(self, name: str, provider: Any) -> dict[str, Any]:
+        configured = _provider_is_configured(name, self.settings)
+        health_check = getattr(provider, "health_check", None)
+        healthy = False
+        if configured and callable(health_check):
+            healthy = bool(await health_check())
+        status = "healthy" if configured and healthy else "degraded" if configured else "unavailable"
+        return {
+            "provider": name,
+            "configured": configured,
+            "healthy": healthy,
+            "status": status,
+            "freshness": "fresh" if healthy else "stale" if configured else None,
+            "lag_seconds": None,
+            "detail": f"{_provider_coverage(name).replace('_', ' ')} coverage",
+            "source_name": getattr(provider, "source_name", name),
+            "source_coverage": 1.0 if configured else 0.0,
+        }
+
+
+@dataclass(slots=True)
+class QueryDecisionContextUseCase:
+    documents: Any
+    store: Any
+    refreshes: Any
+
+    async def execute(self, instrument: str, *, portfolio_name: str = "primary") -> SnapshotRead[dict[str, Any]]:
+        normalized = instrument.upper()
+        portfolio = await self.documents.get_portfolio_snapshot(portfolio_name)
+        market = await self.store.get_market_snapshot(normalized, limit=20)
+        order_book = await self.documents.get_order_book_snapshot(normalized)
+        news = await self.documents.get_normalized_event_stream("company_news", normalized)
+        social = await self.documents.get_normalized_event_stream("social", normalized)
+        announcements = await self.documents.get_normalized_event_stream("exchange_announcements", normalized)
+        policy = await self.documents.get_policy_documents("india")
+
+        if portfolio is None or market is None:
+            return _manual_pending("decision_context", normalized)
+
+        risk = await QueryPortfolioRiskUseCase(
+            documents=self.documents,
+            store=self.store,
+            refreshes=self.refreshes,
+        ).execute(portfolio_name)
+        exposures = await QueryPortfolioExposureUseCase(
+            documents=self.documents,
+            store=self.store,
+            refreshes=self.refreshes,
+        ).execute(portfolio_name)
+        data = {
+            "instrument": normalized,
+            "portfolio_name": portfolio_name,
+            "market": [*_serialize_ticks(market.data)],
+            "order_book": order_book.data if order_book else None,
+            "news": list(news.items) if news else [],
+            "social": list(social.items) if social else [],
+            "exchange_announcements": list(announcements.items) if announcements else [],
+            "policy": list(policy.items) if policy else [],
+            "portfolio": portfolio.data,
+            "portfolio_exposures": exposures.data if exposures.status == "ready" else None,
+            "portfolio_risk": risk.data if risk.status == "ready" else None,
+        }
+        return SnapshotRead(
+            status="ready",
+            data=data,
+            meta=SnapshotMeta(
+                entity_type="decision_context",
+                entity_id=normalized,
+                as_of=market.as_of,
+                computed_at=market.computed_at,
+                freshness=FreshnessPolicy.classify("decision_context", market.as_of),
+                refresh_enqueued=False,
+                feature_version="decision-context-v1",
+                provider_set=tuple(
+                    sorted(
+                        {
+                            *market.provider_set,
+                            *(order_book.provider_set if order_book else ()),
+                            *(news.provider_set if news else ()),
+                            *(social.provider_set if social else ()),
+                            *(announcements.provider_set if announcements else ()),
+                        }
+                    )
+                ),
+            ),
+        )
+
+
+@dataclass(slots=True)
+class ReplayDecisionUseCase:
+    documents: Any
+    store: Any
+    refreshes: Any
+
+    async def execute(self, instrument: str, *, as_of: Any, portfolio_name: str = "primary") -> SnapshotRead[dict[str, Any]]:
+        normalized = instrument.upper()
+        replay_as_of = _parse_as_of(as_of)
+        market = await self.store.get_market_snapshot(normalized, limit=60, as_of=replay_as_of)
+        portfolio = await self.documents.get_portfolio_snapshot(portfolio_name)
+        if market is None or portfolio is None:
+            return _manual_pending("replay_decision", normalized)
+
+        news = await self.documents.get_normalized_news(normalized, as_of=replay_as_of)
+        social = await self.documents.get_social_posts(normalized, as_of=replay_as_of)
+        announcements = await self.documents.get_exchange_announcements(normalized, as_of=replay_as_of)
+        order_book = await self.documents.get_order_book_snapshot(normalized, as_of=replay_as_of)
+        policy = await self.documents.get_policy_documents_as_of("india", as_of=replay_as_of)
+        risk = await QueryPortfolioRiskUseCase(
+            documents=self.documents,
+            store=self.store,
+            refreshes=self.refreshes,
+        ).execute(portfolio_name)
+        exposures = await QueryPortfolioExposureUseCase(
+            documents=self.documents,
+            store=self.store,
+            refreshes=self.refreshes,
+        ).execute(portfolio_name)
+        closes = [float(item.close) for item in market.data[:20]]
+        asset_class = market.data[0].asset_class.value if market.data else "equity"
+        move = 0.0
+        if len(closes) >= 2 and closes[-1] != 0:
+            move = (closes[0] - closes[-1]) / closes[-1]
+        score_breakdown = _build_replay_score_breakdown(
+            asset_class=asset_class,
+            historical_move=move,
+            news_count=len(news.items) if news else 0,
+            social_count=len(social.items) if social else 0,
+            policy_count=len(policy.items) if policy else 0,
+            has_order_book=order_book is not None,
+        )
+        score = score_breakdown["score"]
+        stance = "BUY" if score >= 0.63 else "SELL" if score <= 0.37 else "HOLD"
+        veto_reasons = _replay_veto_reasons(
+            asset_class=asset_class,
+            stance=stance,
+            score=score,
+            has_order_book=order_book is not None,
+            portfolio_risk=risk.data if risk.status == "ready" else None,
+        )
+        allowed = len(veto_reasons) == 0
+        final_action = stance if allowed else "NO_TRADE"
+        confidence = abs(score - 0.5) * 2
+        position_size_pct = min(0.06, max(0.0, confidence * (0.02 if asset_class == "crypto" else 0.03)))
+        capital_at_risk = position_size_pct * 0.35
+        freshness_summary = {
+            "market_ready": len(market.data) >= 20,
+            "order_book_ready": order_book is not None,
+            "news_count": len(news.items) if news else 0,
+            "social_count": len(social.items) if social else 0,
+            "policy_count": len(policy.items) if policy else 0,
+            "announcement_count": len(announcements.items) if announcements else 0,
+            "notes": _replay_freshness_notes(order_book is not None, len(news.items) if news else 0, len(policy.items) if policy else 0),
+            "watch_items": [
+                "Historical replay is shadow-only and does not place orders.",
+                "Portfolio state is read from the latest configured book.",
+            ],
+        }
+        data = {
+            "instrument": normalized,
+            "requested_as_of": replay_as_of.isoformat(),
+            "portfolio_name": portfolio_name,
+            "asset_class": asset_class,
+            "historical_move": move,
+            "replayed_decision": final_action,
+            "context_window_size": len(market.data),
+            "news_count": len(news.items) if news else 0,
+            "social_count": len(social.items) if social else 0,
+            "announcement_count": len(announcements.items) if announcements else 0,
+            "has_order_book": order_book is not None,
+            "policy_count": len(policy.items) if policy else 0,
+            "score_breakdown": score_breakdown,
+            "decision_packet": {
+                "instrument": normalized,
+                "action": final_action,
+                "confidence": confidence,
+                "score": score,
+                "thesis": _replay_thesis(final_action, move, score_breakdown),
+                "entry_zone": f"{closes[0] * 0.995:.2f} - {closes[0] * 1.005:.2f}" if closes else "n/a",
+                "stop_loss": f"{closes[0] * 0.97:.2f}" if closes else "n/a",
+                "take_profit": f"{closes[0] * 1.05:.2f}" if closes else "n/a",
+                "max_holding_period": "4h-7d" if asset_class == "crypto" else "1-10d",
+                "position_size_pct": position_size_pct,
+                "capital_at_risk": capital_at_risk,
+                "kill_switch_reasons": veto_reasons,
+            },
+            "risk_verdict": {
+                "allowed": allowed,
+                "regime": (((risk.data or {}).get("regime") or {}).get("regime_label", "unknown")) if risk.status == "ready" else "unknown",
+                "value_at_risk_95": (risk.data or {}).get("value_at_risk_95", 0.0) if risk.status == "ready" else 0.0,
+                "concentration_risk": (risk.data or {}).get("concentration_risk", 0.0) if risk.status == "ready" else 0.0,
+                "position_size_pct": position_size_pct,
+                "capital_at_risk": capital_at_risk,
+                "kill_switch_reasons": veto_reasons,
+                "rationale": "Historical replay vetoes weak or structurally incomplete contexts before paper action.",
+            },
+            "freshness_summary": freshness_summary,
+            "degrade_reason": "; ".join(veto_reasons) if veto_reasons else None,
+            "portfolio_exposures": exposures.data if exposures.status == "ready" else None,
+        }
+        return SnapshotRead(
+            status="ready",
+            data=data,
+            meta=SnapshotMeta(
+                entity_type="replay_decision",
+                entity_id=normalized,
+                as_of=market.as_of,
+                computed_at=market.computed_at,
+                freshness="fresh",
+                refresh_enqueued=False,
+                feature_version="replay-decision-v1",
+                provider_set=market.provider_set,
+            ),
+        )
+
+
 async def _ensure_event_views(scope: str, store: Any, documents: Any) -> None:
     existing = await documents.get_event_feed(scope)
     if existing is not None:
         return
-
-    world = await store.get_world_state_snapshot()
-    regime = await store.get_market_regime_snapshot()
-    india = await store.get_country_snapshot("IND")
-    btc = await store.get_market_snapshot("X:BTCUSD", limit=7)
-    policy = await documents.get_policy_documents("global")
-    company_news = await documents.get_company_news_snapshot("AAPL")
-
-    events: list[dict[str, Any]] = []
-    if scope in {"global", "us"} and world is not None:
-        events.append(
-            {
-                "title": "US macro pressure remains elevated",
-                "summary": f"Inflation is {world.data.inflation * 100:.2f}% with policy rates at {world.data.interest_rate * 100:.2f}%.",
-                "region": "US",
-                "category": "macro",
-                "entities": ["Fed", "US rates", "inflation"],
-                "urgency": 0.72,
-                "importance": 0.82,
-            }
-        )
-    if scope in {"global", "india"} and india is not None:
-        events.append(
-            {
-                "title": "India policy and sovereign support remain constructive",
-                "summary": f"Political stability {india.data.political_stability:.2f}, FX reserves {india.data.fx_reserves:.2f}.",
-                "region": "India",
-                "category": "policy",
-                "entities": ["India", "RBI", "capex"],
-                "urgency": 0.61,
-                "importance": 0.77,
-            }
-        )
-    if scope in {"global", "btc"} and btc is not None and btc.data:
-        latest = float(btc.data[0].close)
-        prior = float(btc.data[-1].close)
-        move = 0.0 if prior == 0 else (latest - prior) / prior
-        events.append(
-            {
-                "title": "BTC pulse is shifting portfolio risk appetite",
-                "summary": f"BTC moved {move * 100:.2f}% over the stored window.",
-                "region": "BTC",
-                "category": "crypto",
-                "entities": ["BTC", "crypto risk sentiment"],
-                "urgency": 0.68,
-                "importance": 0.74,
-            }
-        )
-    if scope == "global" and regime is not None:
-        events.append(
-            {
-                "title": "Cross-asset regime overlay",
-                "summary": f"Current regime is {regime.data.get('regime_label')} with {regime.data.get('confidence', 0) * 100:.0f}% confidence.",
-                "region": "Global",
-                "category": "regime",
-                "entities": ["risk regime"],
-                "urgency": 0.65,
-                "importance": 0.79,
-            }
-        )
+    records: list[tuple[str, Any]] = []
+    for entity_id in _event_scope_entities(scope):
+        for stream_type in ("news", "social", "announcements"):
+            record = await documents.get_normalized_event_stream(stream_type, entity_id)
+            if record is not None:
+                records.append((stream_type, record))
+    policy_scope = scope if scope in {"global", "india"} else "global"
+    policy = await documents.get_policy_documents(policy_scope)
     if policy is not None:
-        for item in list(policy.items)[:2]:
-            events.append(
-                {
-                    "title": item.get("title", "Policy development"),
-                    "summary": item.get("summary", "Stored policy event"),
-                    "region": "Global" if scope == "global" else scope.upper(),
-                    "category": "policy",
-                    "entities": ["policy"],
-                    "urgency": 0.55,
-                    "importance": 0.66,
-                }
-            )
-    if company_news is not None and scope == "global":
-        for item in list(company_news.items)[:1]:
-            events.append(
-                {
-                    "title": item.get("title", "Company catalyst"),
-                    "summary": item.get("summary", "Stored company event"),
-                    "region": "US",
-                    "category": "company",
-                    "entities": ["AAPL"],
-                    "urgency": 0.48,
-                    "importance": 0.58,
-                }
-            )
+        records.append(("policy", policy))
 
+    events = _compose_real_event_feed(scope=scope, records=records)
+    clusters = _cluster_real_events(events)
+    provider_set = tuple(
+        sorted(
+            {
+                provider
+                for _, record in records
+                for provider in getattr(record, "provider_set", ())
+            }
+        )
+    )
+    dominant = max(clusters, key=lambda item: float(item.get("importance", 0.0)), default=None)
+    await documents.save_event_feed(scope=scope, items=events, provider_set=provider_set)
+    await documents.save_event_clusters(scope=scope, items=clusters, provider_set=provider_set)
+    await documents.save_event_pulse(
+        scope=scope,
+        data={
+            "scope": scope,
+            "headline": dominant.get("headline", "No normalized events available.") if dominant else "No normalized events available.",
+            "event_count": len(events),
+            "dominant_theme": dominant.get("category", "none") if dominant else "none",
+            "average_urgency": mean([float(event.get("urgency", 0.0)) for event in events]) if events else 0.0,
+            "average_importance": mean([float(event.get("importance", 0.0)) for event in events]) if events else 0.0,
+            "highlights": [event.get("title", "") for event in events[:3]],
+        },
+        provider_set=provider_set,
+    )
+
+
+def _event_scope_entities(scope: str) -> list[str]:
+    normalized = scope.lower()
+    mapping = {
+        "btc": ["X:BTCUSD", "BTC", "BTCUSD"],
+        "india": ["IND", "NIFTY", "BANKNIFTY"],
+        "us": ["SPY", "QQQ"],
+        "global": [],
+    }
+    return mapping.get(normalized, [scope.upper()])
+
+
+def _compose_real_event_feed(scope: str, records: list[tuple[str, Any]]) -> list[dict[str, Any]]:
+    events: list[dict[str, Any]] = []
+    for stream_type, record in records:
+        for item in list(getattr(record, "items", []))[:25]:
+            title = (
+                item.get("headline")
+                or item.get("title")
+                or item.get("event_id")
+                or f"{stream_type} event"
+            )
+            events.append(
+                {
+                    "title": title,
+                    "summary": item.get("summary") or item.get("description") or "",
+                    "region": scope.upper(),
+                    "category": "policy" if stream_type == "policy" else stream_type,
+                    "entities": item.get("entity_ids") or item.get("entities") or [],
+                    "urgency": float(item.get("relevance", item.get("urgency", 0.5)) or 0.5),
+                    "importance": float(item.get("novelty", item.get("importance", 0.5)) or 0.5),
+                    "published_at": item.get("published_at"),
+                    "provider": item.get("provider"),
+                }
+            )
+    events.sort(key=lambda item: str(item.get("published_at") or ""), reverse=True)
+    return events[:50]
+
+
+def _cluster_real_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     clusters: dict[str, dict[str, Any]] = {}
     for event in events:
         key = f"{event['region']}::{event['category']}"
@@ -840,24 +1152,8 @@ async def _ensure_event_views(scope: str, store: Any, documents: Any) -> None:
             },
         )
         cluster["event_count"] += 1
-        cluster["importance"] = max(cluster["importance"], event["importance"])
-
-    if events:
-        await documents.save_event_feed(scope=scope, items=events, provider_set=("internal",))
-        await documents.save_event_clusters(scope=scope, items=list(clusters.values()), provider_set=("internal",))
-        await documents.save_event_pulse(
-            scope=scope,
-            data={
-                "scope": scope,
-                "headline": events[0]["title"],
-                "event_count": len(events),
-                "dominant_theme": max(clusters.values(), key=lambda item: item["importance"])["category"],
-                "average_urgency": mean(event["urgency"] for event in events),
-                "average_importance": mean(event["importance"] for event in events),
-                "highlights": [event["title"] for event in events[:3]],
-            },
-            provider_set=("internal",),
-        )
+        cluster["importance"] = max(cluster["importance"], float(event.get("importance", 0.0)))
+    return list(clusters.values())
 
 
 async def _load_metric_series(
@@ -943,6 +1239,113 @@ async def _compute_portfolio_metrics(store: Any, portfolio: dict[str, Any]) -> d
         "value_at_risk_95": value_at_risk_95,
     }
 
+
+def _provider_is_configured(name: str, settings: Any) -> bool:
+    credential_map = {
+        "massive": bool(getattr(settings, "market_api_key", "")),
+        "fred": bool(getattr(settings, "fred_api_key", "")),
+        "world_bank": bool(getattr(settings, "world_bank_base_url", "")),
+        "oanda": bool(getattr(settings, "oanda_api_key", "")),
+        "sec": bool(getattr(settings, "sec_user_agent", "")),
+        "upstox": bool(getattr(settings, "upstox_api_key", "")),
+        "coinapi": bool(getattr(settings, "coinapi_api_key", "")),
+        "gdelt": bool(getattr(settings, "gdelt_base_url", "")),
+        "reddit": bool(getattr(settings, "reddit_client_id", "")) and bool(getattr(settings, "reddit_client_secret", "")),
+        "x": bool(getattr(settings, "x_bearer_token", "")),
+        "rbi_rss": bool(getattr(settings, "rbi_rss_url", "")),
+        "sebi_rss": bool(getattr(settings, "sebi_rss_url", "")),
+        "nse_rss": bool(getattr(settings, "nse_rss_url", "")),
+        "bse_rss": bool(getattr(settings, "bse_rss_url", "")),
+    }
+    return credential_map.get(name, True)
+
+
+def _provider_coverage(name: str) -> str:
+    if name in {"massive", "upstox", "coinapi", "oanda"}:
+        return "market"
+    if name in {"fred", "world_bank", "sec"}:
+        return "fundamentals_macro"
+    if name in {"gdelt", "reddit", "x"}:
+        return "events"
+    return "policy"
+
+
+def _build_replay_score_breakdown(
+    *,
+    asset_class: str,
+    historical_move: float,
+    news_count: int,
+    social_count: int,
+    policy_count: int,
+    has_order_book: bool,
+) -> dict[str, float]:
+    technical = max(0.0, min(1.0, 0.5 + (historical_move * 4)))
+    news = min(news_count / 8, 1.0) * 0.5 + 0.25
+    social = min(social_count / 10, 1.0) * 0.5 + 0.25
+    policy = min(policy_count / 6, 1.0) * 0.4 + 0.3
+    liquidity = 0.7 if has_order_book else 0.35
+    if asset_class == "crypto":
+        score = (technical * 0.30) + (liquidity * 0.25) + (news * 0.20) + (social * 0.15) + (policy * 0.10)
+    else:
+        fundamentals = 0.5
+        score = (
+            (technical * 0.25)
+            + (fundamentals * 0.25)
+            + (news * 0.20)
+            + (social * 0.10)
+            + (policy * 0.10)
+            + (liquidity * 0.10)
+        )
+    return {
+        "score": score,
+        "technical": technical,
+        "news": news,
+        "social": social,
+        "policy": policy,
+        "liquidity": liquidity,
+    }
+
+
+def _replay_veto_reasons(
+    *,
+    asset_class: str,
+    stance: str,
+    score: float,
+    has_order_book: bool,
+    portfolio_risk: dict[str, Any] | None,
+) -> list[str]:
+    reasons: list[str] = []
+    if stance == "HOLD" or abs(score - 0.5) < 0.12:
+        reasons.append("Replay conviction is too weak for a paper trade.")
+    if asset_class == "crypto" and not has_order_book:
+        reasons.append("Crypto replay is missing order-book evidence.")
+    if portfolio_risk is None:
+        reasons.append("Portfolio risk snapshot is unavailable.")
+    elif float(portfolio_risk.get("concentration_risk", 0.0) or 0.0) > 0.55:
+        reasons.append("Portfolio concentration is already above the allowed replay threshold.")
+    return reasons
+
+
+def _replay_freshness_notes(has_order_book: bool, news_count: int, policy_count: int) -> list[str]:
+    notes = ["Market replay used historical bars at the requested timestamp."]
+    if not has_order_book:
+        notes.append("Level-2 depth was unavailable for the replay timestamp.")
+    if news_count == 0:
+        notes.append("No normalized news events were stored for this replay window.")
+    if policy_count == 0:
+        notes.append("No policy events were attached to the replay window.")
+    return notes
+
+
+def _replay_thesis(action: str, move: float, score_breakdown: dict[str, float]) -> str:
+    direction = "positive" if move >= 0 else "negative"
+    if action == "NO_TRADE":
+        return "Historical context was measurable, but risk controls rejected trade deployment."
+    return (
+        f"Replay momentum was {direction} with technical score {score_breakdown['technical']:.2f} "
+        f"and liquidity score {score_breakdown['liquidity']:.2f}."
+    )
+
 async def _snapshot_response(snapshot: Any, entity_type: str, entity_id: str, refreshes: Any) -> SnapshotRead[Any]:
     if snapshot is None:
         refresh_enqueued = await refreshes.request_refresh(entity_type, entity_id, reason="cache_miss")
@@ -978,6 +1381,33 @@ async def _snapshot_response(snapshot: Any, entity_type: str, entity_id: str, re
             provider_set=snapshot.provider_set,
         ),
     )
+
+
+def _serialize_ticks(ticks: list[Any]) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for tick in ticks:
+        items.append(
+            {
+                "ticker": tick.ticker,
+                "asset_class": tick.asset_class.value,
+                "timestamp": tick.timestamp.isoformat(),
+                "open": str(tick.open),
+                "high": str(tick.high),
+                "low": str(tick.low),
+                "close": str(tick.close),
+                "volume": tick.volume,
+            }
+        )
+    return items
+
+
+def _parse_as_of(value: Any):
+    from datetime import UTC, datetime
+
+    if isinstance(value, datetime):
+        return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+    parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
 
 
 def _manual_pending(entity_type: str, entity_id: str) -> SnapshotRead[Any]:

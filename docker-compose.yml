@@ -68,24 +68,6 @@ services:
       timeout: 5s
       retries: 5
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.1
-    container_name: stratos-keycloak
-    command: start-dev --import-realm
-    environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./infra/keycloak:/opt/keycloak/data/import:ro
-    healthcheck:
-      test: ["CMD", "bash", "-lc", "exec 3<>/dev/tcp/127.0.0.1/8080"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
-
   redis:
     image: redis:7-alpine
     container_name: stratos-redis
@@ -147,17 +129,32 @@ services:
       DF_S3_SECRET_KEY: minioadmin
       DF_S3_BUCKET: stratos-data
       DF_QDRANT_URL: http://qdrant:6333
-      DF_KEYCLOAK_URL: http://keycloak:8080
       FRED_API_KEY: ${FRED_API_KEY:-}
       POLYGON_API_KEY: ${POLYGON_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
       POLYGON_BASE_URL: ${POLYGON_BASE_URL:-https://api.massive.com}
       MASSIVE_BASE_URL: ${MASSIVE_BASE_URL:-https://api.massive.com}
+      UPSTOX_API_KEY: ${UPSTOX_API_KEY:-}
+      UPSTOX_BASE_URL: ${UPSTOX_BASE_URL:-https://api.upstox.com}
+      COINAPI_API_KEY: ${COINAPI_API_KEY:-}
+      COINAPI_BASE_URL: ${COINAPI_BASE_URL:-https://rest.coinapi.io}
+      GDELT_BASE_URL: ${GDELT_BASE_URL:-https://api.gdeltproject.org/api/v2}
+      REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
+      REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}
+      REDDIT_USER_AGENT: ${REDDIT_USER_AGENT:-stratos-data-fabric/0.1}
+      X_API_KEY: ${X_API_KEY:-}
+      X_API_SECRET: ${X_API_SECRET:-}
+      X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
+      X_BASE_URL: ${X_BASE_URL:-https://api.x.com/2}
       OANDA_API_KEY: ${OANDA_API_KEY:-}
       WORLD_BANK_BASE_URL: ${WORLD_BANK_BASE_URL:-https://api.worldbank.org/v2}
       SEC_BASE_URL: ${SEC_BASE_URL:-https://data.sec.gov}
       SEC_TICKER_MAP_URL: ${SEC_TICKER_MAP_URL:-https://www.sec.gov/files/company_tickers.json}
       SEC_USER_AGENT: ${SEC_USER_AGENT:-STRATOS Research support@makeuslive.com}
+      RBI_RSS_URL: ${RBI_RSS_URL:-https://www.rbi.org.in/Scripts/RSS.aspx?Id=4}
+      SEBI_RSS_URL: ${SEBI_RSS_URL:-https://www.sebi.gov.in/sebirss.xml}
+      NSE_RSS_URL: ${NSE_RSS_URL:-https://www.nseindia.com/rss-feed}
+      BSE_RSS_URL: ${BSE_RSS_URL:-https://www.bseindia.com/rss-feed.xml}
       DF_DEBUG: "false"
     depends_on:
       postgres:
@@ -167,8 +164,6 @@ services:
       minio:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
-      keycloak:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -192,14 +187,29 @@ services:
       DF_S3_SECRET_KEY: minioadmin
       DF_S3_BUCKET: stratos-data
       DF_QDRANT_URL: http://qdrant:6333
-      DF_KEYCLOAK_URL: http://keycloak:8080
       FRED_API_KEY: ${FRED_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
       POLYGON_API_KEY: ${POLYGON_API_KEY:-}
+      UPSTOX_API_KEY: ${UPSTOX_API_KEY:-}
+      UPSTOX_BASE_URL: ${UPSTOX_BASE_URL:-https://api.upstox.com}
+      COINAPI_API_KEY: ${COINAPI_API_KEY:-}
+      COINAPI_BASE_URL: ${COINAPI_BASE_URL:-https://rest.coinapi.io}
+      GDELT_BASE_URL: ${GDELT_BASE_URL:-https://api.gdeltproject.org/api/v2}
+      REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
+      REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}
+      REDDIT_USER_AGENT: ${REDDIT_USER_AGENT:-stratos-data-fabric/0.1}
+      X_API_KEY: ${X_API_KEY:-}
+      X_API_SECRET: ${X_API_SECRET:-}
+      X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
+      X_BASE_URL: ${X_BASE_URL:-https://api.x.com/2}
       WORLD_BANK_BASE_URL: ${WORLD_BANK_BASE_URL:-https://api.worldbank.org/v2}
       SEC_BASE_URL: ${SEC_BASE_URL:-https://data.sec.gov}
       SEC_TICKER_MAP_URL: ${SEC_TICKER_MAP_URL:-https://www.sec.gov/files/company_tickers.json}
       SEC_USER_AGENT: ${SEC_USER_AGENT:-STRATOS Research support@makeuslive.com}
+      RBI_RSS_URL: ${RBI_RSS_URL:-https://www.rbi.org.in/Scripts/RSS.aspx?Id=4}
+      SEBI_RSS_URL: ${SEBI_RSS_URL:-https://www.sebi.gov.in/sebirss.xml}
+      NSE_RSS_URL: ${NSE_RSS_URL:-https://www.nseindia.com/rss-feed}
+      BSE_RSS_URL: ${BSE_RSS_URL:-https://www.bseindia.com/rss-feed.xml}
     depends_on:
       - data-fabric
 
@@ -220,14 +230,29 @@ services:
       DF_S3_SECRET_KEY: minioadmin
       DF_S3_BUCKET: stratos-data
       DF_QDRANT_URL: http://qdrant:6333
-      DF_KEYCLOAK_URL: http://keycloak:8080
       FRED_API_KEY: ${FRED_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
       POLYGON_API_KEY: ${POLYGON_API_KEY:-}
+      UPSTOX_API_KEY: ${UPSTOX_API_KEY:-}
+      UPSTOX_BASE_URL: ${UPSTOX_BASE_URL:-https://api.upstox.com}
+      COINAPI_API_KEY: ${COINAPI_API_KEY:-}
+      COINAPI_BASE_URL: ${COINAPI_BASE_URL:-https://rest.coinapi.io}
+      GDELT_BASE_URL: ${GDELT_BASE_URL:-https://api.gdeltproject.org/api/v2}
+      REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
+      REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}
+      REDDIT_USER_AGENT: ${REDDIT_USER_AGENT:-stratos-data-fabric/0.1}
+      X_API_KEY: ${X_API_KEY:-}
+      X_API_SECRET: ${X_API_SECRET:-}
+      X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
+      X_BASE_URL: ${X_BASE_URL:-https://api.x.com/2}
       WORLD_BANK_BASE_URL: ${WORLD_BANK_BASE_URL:-https://api.worldbank.org/v2}
       SEC_BASE_URL: ${SEC_BASE_URL:-https://data.sec.gov}
       SEC_TICKER_MAP_URL: ${SEC_TICKER_MAP_URL:-https://www.sec.gov/files/company_tickers.json}
       SEC_USER_AGENT: ${SEC_USER_AGENT:-STRATOS Research support@makeuslive.com}
+      RBI_RSS_URL: ${RBI_RSS_URL:-https://www.rbi.org.in/Scripts/RSS.aspx?Id=4}
+      SEBI_RSS_URL: ${SEBI_RSS_URL:-https://www.sebi.gov.in/sebirss.xml}
+      NSE_RSS_URL: ${NSE_RSS_URL:-https://www.nseindia.com/rss-feed}
+      BSE_RSS_URL: ${BSE_RSS_URL:-https://www.bseindia.com/rss-feed.xml}
     depends_on:
       - data-fabric
 
@@ -248,7 +273,6 @@ services:
       DF_S3_SECRET_KEY: minioadmin
       DF_S3_BUCKET: stratos-data
       DF_QDRANT_URL: http://qdrant:6333
-      DF_KEYCLOAK_URL: http://keycloak:8080
       FRED_API_KEY: ${FRED_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
       POLYGON_API_KEY: ${POLYGON_API_KEY:-}
@@ -276,7 +300,6 @@ services:
       DF_S3_SECRET_KEY: minioadmin
       DF_S3_BUCKET: stratos-data
       DF_QDRANT_URL: http://qdrant:6333
-      DF_KEYCLOAK_URL: http://keycloak:8080
       FRED_API_KEY: ${FRED_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
       POLYGON_API_KEY: ${POLYGON_API_KEY:-}
@@ -304,7 +327,6 @@ services:
       DF_S3_SECRET_KEY: minioadmin
       DF_S3_BUCKET: stratos-data
       DF_QDRANT_URL: http://qdrant:6333
-      DF_KEYCLOAK_URL: http://keycloak:8080
       FRED_API_KEY: ${FRED_API_KEY:-}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
       POLYGON_API_KEY: ${POLYGON_API_KEY:-}
@@ -314,15 +336,6 @@ services:
       SEC_USER_AGENT: ${SEC_USER_AGENT:-STRATOS Research support@makeuslive.com}
     depends_on:
       - data-fabric
-
-  # ── Layer 2: Engines (Rust) ──────────────────────────────────────────────
-  engines-rust:
-    build:
-      context: .
-      dockerfile: infra/docker/engines-rust.Dockerfile
-    container_name: stratos-engines-rust
-    # Rust engines are compiled binaries / FFI wheels; no long-running HTTP service
-    command: ["tail", "-f", "/dev/null"]
 
   # ── Layer 3: ML Service ──────────────────────────────────────────────────
   ml-service:
@@ -370,9 +383,10 @@ services:
       ORCHESTRATOR_ML_SERVICE_URL: http://ml-service:8003/ml
       ORCHESTRATOR_NLP_SERVICE_URL: http://nlp-service:8004/nlp
       ORCHESTRATOR_QDRANT_URL: http://qdrant:6333
-      ORCHESTRATOR_KEYCLOAK_URL: http://keycloak:8080
       ORCHESTRATOR_LLM_PROVIDER: ${ORCHESTRATOR_LLM_PROVIDER:-ollama}
+      ORCHESTRATOR_LANGCHAIN_AGENT_MODEL: ${ORCHESTRATOR_LANGCHAIN_AGENT_MODEL:-}
       ORCHESTRATOR_OLLAMA_MODEL: ${ORCHESTRATOR_OLLAMA_MODEL:-kimi-k2.5:cloud}
+      ORCHESTRATOR_OLLAMA_BASE_URL: ${ORCHESTRATOR_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       ORCHESTRATOR_OPENAI_MODEL: ${ORCHESTRATOR_OPENAI_MODEL:-gpt-4-turbo-preview}
       ORCHESTRATOR_OPENAI_API_KEY: ${ORCHESTRATOR_OPENAI_API_KEY:-}
       ORCHESTRATOR_GROQ_MODEL: ${ORCHESTRATOR_GROQ_MODEL:-moonshotai/kimi-k2-instruct-0905}
@@ -412,6 +426,7 @@ services:
       NEXT_PUBLIC_ML_SERVICE_URL: http://localhost:8003/ml
       NEXT_PUBLIC_NLP_SERVICE_URL: http://localhost:8004/nlp
       NEXT_PUBLIC_ORCHESTRATOR_URL: http://localhost:8005
+      NEXT_PUBLIC_ENABLE_DEMO: ${NEXT_PUBLIC_ENABLE_DEMO:-false}
     depends_on:
       - orchestrator
 

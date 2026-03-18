@@ -11,8 +11,6 @@ export interface AppSession {
   email: string
   source: "local" | "demo"
   sessionId?: string
-  keycloakToken?: string
-  refreshToken?: string
   expiresAt: string
   refreshExpiresAt?: string
   createdAt: string

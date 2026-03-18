@@ -21,6 +21,10 @@ const API_URLS = {
     process.env.NEXT_PUBLIC_DATA_FABRIC_URL ?? "http://localhost:8000",
     "/api/v2"
   ),
+  research: normalizeBaseUrl(
+    process.env.NEXT_PUBLIC_DATA_FABRIC_URL ?? "http://localhost:8000",
+    "/api/v2/research"
+  ),
   ml: normalizeBaseUrl(process.env.NEXT_PUBLIC_ML_SERVICE_URL ?? "http://localhost:8003/ml"),
   nlp: normalizeBaseUrl(process.env.NEXT_PUBLIC_NLP_SERVICE_URL ?? "http://localhost:8004/nlp"),
   orchestrator: normalizeBaseUrl(
@@ -148,11 +152,113 @@ export function clearSnapshotState(): void {
 export const api = {
   dataFabric: axios.create({ baseURL: API_URLS.dataFabric }),
   dataFabricV2: axios.create({ baseURL: API_URLS.dataFabricV2 }),
+  researchClient: axios.create({ baseURL: API_URLS.research }),
   ml: axios.create({ baseURL: API_URLS.ml }),
   nlp: axios.create({ baseURL: API_URLS.nlp }),
   orchestrator: axios.create({ baseURL: API_URLS.orchestrator }),
 
   pollDataFabricV2: pollSnapshot,
+
+  // Research/RAG API
+  research: {
+    // Documents
+    uploadDocument: async (workspaceId: string, file: File, userId?: string) => {
+      const formData = new FormData()
+      formData.append("file", file)
+      const response = await api.researchClient.post("/documents/upload", formData, {
+        params: { workspace_id: workspaceId, user_id: userId },
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      return response.data
+    },
+
+    listDocuments: async (workspaceId: string, limit = 50, offset = 0) => {
+      const response = await api.researchClient.get("/documents", {
+        params: { workspace_id: workspaceId, limit, offset },
+      })
+      return response.data
+    },
+
+    getDocument: async (documentId: string) => {
+      const response = await api.researchClient.get(`/documents/${documentId}`)
+      return response.data
+    },
+
+    getDocumentChunks: async (documentId: string) => {
+      const response = await api.researchClient.get(`/documents/${documentId}/chunks`)
+      return response.data
+    },
+
+    // Briefs
+    createBrief: async (data: {
+      workspace_id: string
+      title: string
+      thesis?: string
+      status?: string
+      linked_positions?: string[]
+      linked_events?: string[]
+      created_by?: string
+    }) => {
+      const response = await api.researchClient.post("/briefs", data)
+      return response.data
+    },
+
+    listBriefs: async (
+      workspaceId: string,
+      options?: { status?: string; linked_position?: string; limit?: number; offset?: number }
+    ) => {
+      const response = await api.researchClient.get("/briefs", {
+        params: { workspace_id: workspaceId, ...options },
+      })
+      return response.data
+    },
+
+    getBrief: async (briefId: string) => {
+      const response = await api.researchClient.get(`/briefs/${briefId}`)
+      return response.data
+    },
+
+    updateBrief: async (
+      briefId: string,
+      data: {
+        title?: string
+        thesis?: string
+        status?: string
+        linked_positions?: string[]
+        linked_events?: string[]
+      }
+    ) => {
+      const response = await api.researchClient.put(`/briefs/${briefId}`, data)
+      return response.data
+    },
+
+    getBriefEvidence: async (briefId: string) => {
+      const response = await api.researchClient.get(`/briefs/${briefId}/evidence`)
+      return response.data
+    },
+
+    // Retrieval
+    queryEvidence: async (data: {
+      query: string
+      workspace_id: string
+      filters?: Record<string, any>
+      top_k?: number
+    }) => {
+      const response = await api.researchClient.post("/retrieval/query", data)
+      return response.data
+    },
+
+    // Evidence
+    addEvidence: async (data: { brief_id: string; chunk_id: string; note?: string }) => {
+      const response = await api.researchClient.post("/evidence", data)
+      return response.data
+    },
+
+    getEvidence: async (evidenceId: string) => {
+      const response = await api.researchClient.get(`/evidence/${evidenceId}`)
+      return response.data
+    },
+  },
 
   streamOrchestrate: async (query: string, onEvent: (type: string, data: any) => void) => {
     const response = await fetch(`${API_URLS.orchestrator}/orchestrate/stream`, {
@@ -235,6 +341,347 @@ export const api = {
       }
     }
   },
+
+  streamOrchestrateV4: async (
+    query: string,
+    onEvent: (type: string, data: any) => void,
+    options?: { threadId?: string; userId?: string; workspaceId?: string; roleLens?: string; responseModeHint?: string }
+  ) => {
+    const response = await fetch(`${API_URLS.orchestrator}/orchestrate/v4/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query,
+        thread_id: options?.threadId,
+        user_id: options?.userId,
+        workspace_id: options?.workspaceId ?? "default",
+        role_lens: options?.roleLens,
+        response_mode_hint: options?.responseModeHint,
+      }),
+    })
+
+    const reader = response.body?.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+
+    if (!reader) {
+      return
+    }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split("\n\n")
+      buffer = lines.pop() || ""
+
+      for (const line of lines) {
+        if (!line.trim()) {
+          continue
+        }
+        const [eventLine, dataLine] = line.split("\n")
+        const type = eventLine.replace("event: ", "").trim()
+        const data = JSON.parse(dataLine.replace("data: ", "").trim())
+        onEvent(type, data)
+      }
+    }
+  },
+
+  /**
+   * Resume a run that was interrupted at an HITL approval gate.
+   *
+   * @param runId    - Opaque run identifier returned by the orchestrator
+   * @param threadId - Thread the run belongs to
+   * @param decision - "approve" | "reject"
+   * @param note     - Optional free-text note from the reviewer
+   */
+  resumeRun: async (
+    runId: string,
+    threadId: string,
+    decision: "approve" | "reject",
+    note?: string
+  ): Promise<{ status: string; message?: string }> => {
+    const response = await fetch(`${API_URLS.orchestrator}/orchestrate/v4/resume`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ run_id: runId, thread_id: threadId, decision, note }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Resume failed: ${response.status} ${response.statusText}`)
+    }
+
+    return response.json() as Promise<{ status: string; message?: string }>
+  },
+
+  // --------------------------------------------------------------------------
+  // V5 Orchestration (LangGraph-native)
+  // --------------------------------------------------------------------------
+
+  /**
+   * Stream V5 orchestration with SSE events.
+   * 
+   * @param query - User query
+   * @param onEvent - Callback for each SSE event
+   * @param options - Optional params (threadId, userId, workspaceId, mode)
+   */
+  orchestrateV5Stream: async (
+    query: string,
+    onEvent: (type: string, data: any) => void,
+    options?: {
+      threadId?: string
+      userId?: string
+      workspaceId?: string
+      mode?: string
+    }
+  ) => {
+    console.log("V5 stream: starting request for query:", query)
+    const response = await fetch(`${API_URLS.orchestrator}/orchestrate/v5/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query,
+        thread_id: options?.threadId,
+        user_id: options?.userId,
+        workspace_id: options?.workspaceId ?? "default",
+        mode: options?.mode,
+      }),
+    })
+
+    console.log("V5 stream: response status:", response.status, response.statusText)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`V5 stream failed: ${response.status} ${response.statusText} - ${errorText}`)
+    }
+
+    const reader = response.body?.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+
+    if (!reader) {
+      return
+    }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split("\n\n")
+      buffer = lines.pop() || ""
+
+      for (const line of lines) {
+        if (!line.trim()) {
+          continue
+        }
+        const [eventLine, dataLine] = line.split("\n")
+        if (!eventLine || !dataLine) {
+          continue
+        }
+        const type = eventLine.replace("event: ", "").trim()
+        try {
+          const data = JSON.parse(dataLine.replace("data: ", "").trim())
+          try {
+            onEvent(type, data)
+          } catch (callbackError) {
+            console.error("V5 stream event callback error:", callbackError)
+          }
+        } catch (parseError) {
+          console.warn("Failed to parse SSE event:", line, parseError)
+        }
+      }
+    }
+    
+    // Ensure we read any remaining buffer
+    if (buffer.trim()) {
+      console.log("V5 stream: remaining buffer:", buffer)
+    }
+  },
+
+  /**
+   * Execute V5 orchestration synchronously (non-streaming).
+   */
+  orchestrateV5: async (
+    query: string,
+    options?: {
+      threadId?: string
+      userId?: string
+      workspaceId?: string
+      mode?: string
+    }
+  ) => {
+    const response = await fetch(`${API_URLS.orchestrator}/orchestrate/v5`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query,
+        thread_id: options?.threadId,
+        user_id: options?.userId,
+        workspace_id: options?.workspaceId ?? "default",
+        mode: options?.mode,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`V5 orchestration failed: ${response.status} ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Resume V5 orchestration from an approval decision.
+   */
+  resumeV5Thread: async (
+    threadId: string,
+    approvalId: string,
+    approved: boolean,
+    note?: string
+  ) => {
+    const response = await fetch(`${API_URLS.orchestrator}/orchestrate/v5/resume`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        thread_id: threadId,
+        approval_id: approvalId,
+        approved,
+        note,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Resume failed: ${response.status} ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  /**
+   * Get V5 thread state for reconnection/hydration.
+   */
+  getV5ThreadState: async (threadId: string) => {
+    const response = await fetch(
+      `${API_URLS.orchestrator}/orchestrate/v5/thread/${threadId}`
+    )
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null
+      }
+      throw new Error(`Failed to get thread state: ${response.status}`)
+    }
+
+    return response.json()
+  },
+
+  // --------------------------------------------------------------------------
+  // Decisions
+  // --------------------------------------------------------------------------
+
+  decisions: {
+    create: async (data: {
+      workspace_id: string
+      thread_id?: string
+      run_id?: string
+      type: string
+      inputs: Record<string, unknown>
+      outputs?: Record<string, unknown>
+      status?: string
+      confidence_score?: number
+      risk_band?: string
+      linked_positions?: string[]
+      linked_events?: string[]
+      linked_briefs?: string[]
+      created_by?: string
+      note?: string
+    }) => {
+      const response = await api.orchestrator.post("/decisions", data)
+      return response.data
+    },
+
+    list: async (params: {
+      workspace_id: string
+      type?: string
+      status?: string
+      limit?: number
+      offset?: number
+    }) => {
+      const response = await api.orchestrator.get("/decisions", { params })
+      return response.data
+    },
+
+    get: async (decisionId: string) => {
+      const response = await api.orchestrator.get(`/decisions/${decisionId}`)
+      return response.data
+    },
+
+    update: async (
+      decisionId: string,
+      data: {
+        status?: string
+        note?: string
+        outputs?: Record<string, unknown>
+      }
+    ) => {
+      const response = await api.orchestrator.put(`/decisions/${decisionId}`, data)
+      return response.data
+    },
+
+    history: async (params: {
+      workspace_id: string
+      position?: string
+      event?: string
+      since?: string
+      limit?: number
+    }) => {
+      const response = await api.orchestrator.get("/decisions/history/list", { params })
+      return response.data
+    },
+
+    pending: async (workspaceId: string) => {
+      const response = await api.orchestrator.get("/decisions/queue/pending", {
+        params: { workspace_id: workspaceId },
+      })
+      return response.data
+    },
+  },
+
+  signals: {
+    getOverview: async (workspaceId: string, role?: string, focus?: string, limit = 20) => {
+      const response = await api.orchestrator.get("/signals/overview", {
+        params: { workspace_id: workspaceId, role: role || "pm", focus, limit },
+      })
+      return response.data
+    },
+
+    getAttention: async (workspaceId: string, role?: string, limit = 10) => {
+      const response = await api.orchestrator.get("/signals/attention", {
+        params: { workspace_id: workspaceId, role: role || "pm", limit },
+      })
+      return response.data
+    },
+
+    create: async (data: {
+      workspace_id: string
+      type: "risk" | "opportunity" | "event" | "market" | "research"
+      title: string
+      detail: string
+      urgency?: number
+      confidence?: number
+      linked_positions?: string[]
+      linked_events?: string[]
+      linked_briefs?: string[]
+    }) => {
+      const response = await api.orchestrator.post("/signals", data)
+      return response.data
+    },
+  },
 }
 
 export interface WorldState {
@@ -309,6 +756,24 @@ export interface EventPulse {
   average_urgency: number
   average_importance: number
   highlights: string[]
+  upcoming_events?: Array<{ title?: string; date?: string; type?: string; impact?: string }>
+}
+
+export interface SignalItem {
+  signal_id: string
+  type: "risk" | "opportunity" | "event" | "market" | "research"
+  title: string
+  detail: string
+  urgency: number
+  confidence: number
+  freshness: "fresh" | "stale"
+  linked_entities: {
+    positions?: string[]
+    events?: string[]
+    briefs?: string[]
+  }
+  score: number
+  created_at: string
 }
 
 export interface CompareMetricSnapshot {
@@ -438,7 +903,116 @@ export interface PredictionRequest {
   model?: string
 }
 
+export interface EvidenceBlock {
+  title: string
+  detail: string
+}
+
+export interface FinanceDecisionPacket {
+  instrument: string
+  action: string
+  confidence: number
+  score: number
+  thesis: string
+  entry_zone: string
+  stop_loss: string
+  take_profit: string
+  max_holding_period: string
+  position_size_pct: number
+  capital_at_risk: number
+  kill_switch_reasons: string[]
+}
+
+export interface FinanceAnalystSignal {
+  analyst: string
+  instrument: string
+  signal_score: number
+  confidence: number
+  direction: string
+  thesis: string
+  evidence_ids: string[]
+  citations: string[]
+  freshness_ok: boolean
+}
+
+export interface FinanceRiskVerdict {
+  allowed: boolean
+  regime: string
+  value_at_risk_95: number
+  concentration_risk: number
+  position_size_pct: number
+  capital_at_risk: number
+  kill_switch_reasons: string[]
+  rationale: string
+}
+
+export interface FinanceProviderHealthItem {
+  provider: string
+  status: string
+  freshness?: SnapshotMeta["freshness"] | null
+  lag_seconds?: number | null
+  detail?: string | null
+  source_coverage?: number | null
+}
+
+export interface FinanceProviderHealthSummary {
+  overall_status: string
+  summary?: string | null
+  checked_at?: string | null
+  providers: FinanceProviderHealthItem[]
+  notes?: string[]
+}
+
+export interface FinanceReplaySummary {
+  as_of?: string | null
+  action?: string | null
+  confidence?: number | null
+  realized_move?: number | null
+  outcome_label?: string | null
+  veto_reason?: string | null
+  notes?: string[]
+}
+
+export interface AgentTrace {
+  path?: string
+  answer_mode?: string
+  degrade_reason?: string | null
+  delegate_runtime?: string
+  mode?: string
+  instrument?: string
+  supervisor_plan?: {
+    active_analysts?: string[]
+    reasoning_mode?: string
+    risk_posture?: string
+    requires_debate?: boolean
+    rationale?: string
+  } | null
+  feedback_summary?: {
+    observations?: number
+    avg_realized_move?: number
+    veto_rate?: number
+    last_action?: string | null
+    last_confidence?: number | null
+  } | null
+  [key: string]: unknown
+}
+
+export interface FreshnessSummary {
+  market_ready: boolean
+  order_book_ready: boolean
+  news_count: number
+  social_count: number
+  policy_count: number
+  notes: string[]
+  watch_items: string[]
+  [key: string]: unknown
+}
+
 export interface AgentResponse {
+  status?: string
+  thread_id?: string
+  run_id?: string
+  approval_requests?: Array<{ approval_id: string; reason: string; required: boolean }>
   decision?: string
   recommendation: string
   confidence_score: number
@@ -456,5 +1030,21 @@ export interface AgentResponse {
   recommended_actions?: string[]
   watch_items?: string[]
   data_quality?: string[]
-  evidence_blocks?: Array<{ title: string; detail: string }>
+  evidence_blocks?: EvidenceBlock[]
+  specialist_views?: Array<{
+    specialist: string
+    title: string
+    summary: string
+    verdict?: string | null
+    claims?: string[]
+    concerns?: string[]
+  }>
+  decision_packet?: FinanceDecisionPacket
+  analyst_signals?: FinanceAnalystSignal[]
+  risk_verdict?: FinanceRiskVerdict
+  freshness_summary?: FreshnessSummary
+  provider_health?: FinanceProviderHealthSummary
+  replay_summary?: FinanceReplaySummary
+  degrade_reason?: string | null
+  trace?: AgentTrace
 }

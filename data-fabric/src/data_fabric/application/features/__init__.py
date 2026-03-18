@@ -113,7 +113,7 @@ class FeatureBuilderUseCase:
             )
             return
 
-        if provider == "massive":
+        if provider in {"massive", "upstox", "coinapi"}:
             document = await self.documents.get_latest_provider_document(provider, entity_type, entity_id, "market_bars")
             if not document:
                 return
@@ -121,7 +121,7 @@ class FeatureBuilderUseCase:
             await self.store.save_market_ticks(
                 bars,
                 feature_version="market-bars-v1",
-                provider_set=("massive",),
+                provider_set=(provider,),
             )
             await self.events.publish(
                 topic="feature.build.completed",
@@ -210,4 +210,3 @@ class FeatureBuilderUseCase:
             )
         series.sort(key=lambda item: item["period_end"], reverse=True)
         return series
-

@@ -118,3 +118,4 @@ temp/
 .stylelintcache
 .prettiercache
 
+.gstack/

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import time
 from dataclasses import dataclass
 from functools import lru_cache
@@ -131,6 +132,8 @@ class AgentContext:
 
 def _classify_intent(query: str) -> str:
     lowered = query.lower()
+    if any(token in lowered for token in ("price", "quote", "trading", "market price")):
+        return "market"
     if any(token in lowered for token in ("portfolio", "holding", "rebalance", "book", "position")):
         return "portfolio"
     if any(token in lowered for token in ("scenario", "what if", "shock", "oil", "inflation", "btc")):
@@ -148,6 +151,14 @@ def _classify_intent(query: str) -> str:
 
 def _classify_role(query: str) -> str:
     lowered = query.lower()
+    if any(token in lowered for token in ("general llm", "general assistant", "general copilot")):
+        return "general"
+    if re.search(r"\bca\b", lowered) or any(token in lowered for token in ("chartered accountant", "audit", "reconciliation", "close checklist", "tax filing", "compliance")):
+        return "ca"
+    if re.search(r"\bcfa\b", lowered) or any(token in lowered for token in ("equity research", "initiation", "valuation", "financial model", "investment memo")):
+        return "cfa"
+    if re.search(r"\bcmo\b", lowered) or any(token in lowered for token in ("campaign", "positioning", "go-to-market", "gtm", "marketing", "growth plan", "brand strategy")):
+        return "cmo"
     if "ceo" in lowered:
         return "ceo"
     if "cfo" in lowered or "treasury" in lowered:
@@ -305,18 +316,21 @@ class LangChainAgentRuntime:
         role = _classify_role(query)
         yield self._event("status", "Building LangChain execution context...")
         yield self._event("context", {"intent": intent, "role": role, "thread_id": thread_id})
-        await self._ensure_agent()
-        routing_plan = await self._plan_routing(query=query, intent=intent, role=role)
-        yield self._event(
-            "strategy",
-            {
-                "mode": routing_plan.mode,
-                "delegates": routing_plan.delegates,
-                "use_memory": routing_plan.use_memory,
-                "rationale": routing_plan.rationale,
-            },
-        )
-        memo = await self.execute(query, thread_id=thread_id, user_id=user_id)
+        try:
+            await self._ensure_agent()
+            routing_plan = await self._plan_routing(query=query, intent=intent, role=role)
+            yield self._event(
+                "strategy",
+                {
+                    "mode": routing_plan.mode,
+                    "delegates": routing_plan.delegates,
+                    "use_memory": routing_plan.use_memory,
+                    "rationale": routing_plan.rationale,
+                },
+            )
+            memo = await self.execute(query, thread_id=thread_id, user_id=user_id)
+        except Exception as exc:
+            memo = self._fallback_memo(query=query, intent=intent, role=role, error=str(exc))
         yield self._event(
             "plan",
             [{"tool_name": task.tool_name, "arguments": task.arguments} for task in memo.tasks],
@@ -371,7 +385,8 @@ class LangChainAgentRuntime:
                 tools=direct_tools["research"],
                 system_prompt=(
                     "You are the STRATOS research subagent. Use tools aggressively for current facts, "
-                    "web lookups, market events, company context, and macro research."
+                    "web lookups, market events, company context, and macro research. "
+                    f"Only call tools from this exact set: {', '.join(tool.name for tool in direct_tools['research'])}."
                 ),
                 name="research_assistant",
                 checkpointer=self._checkpointer,
@@ -395,7 +410,8 @@ class LangChainAgentRuntime:
                 tools=direct_tools["portfolio"],
                 system_prompt=(
                     "You are the STRATOS portfolio subagent. Use portfolio, regime, history, company, "
-                    "and calculator tools to answer exposure, scenario, sizing, and allocation questions."
+                    "and calculator tools to answer exposure, scenario, sizing, and allocation questions. "
+                    f"Only call tools from this exact set: {', '.join(tool.name for tool in direct_tools['portfolio'])}."
                 ),
                 name="portfolio_assistant",
                 checkpointer=self._checkpointer,
@@ -467,7 +483,8 @@ class LangChainAgentRuntime:
                     "Route LangChain documentation questions to docs_assistant. "
                     "Route research and docs work to research_assistant. Route holdings, sizing, and scenario work "
                     "to portfolio_assistant. Route architecture, RAG, multi-agent, LangGraph, memory, MCP, and "
-                    "deep-agent implementation work to skill_assistant. Prefer grounded tool outputs over unsupported model guesses."
+                    "deep-agent implementation work to skill_assistant. Prefer grounded tool outputs over unsupported model guesses. "
+                    "Never invent tool names that are not explicitly exposed."
                 ),
                 name="stratos_supervisor",
                 checkpointer=self._checkpointer,
@@ -678,21 +695,44 @@ class LangChainAgentRuntime:
         if provider == "ollama":
             return ChatOllama(
                 model=explicit_model or self._settings.ollama_model,
-                base_url="http://host.docker.internal:11434",
+                base_url=self._settings.ollama_base_url,
                 temperature=0.1,
             )
         if provider == "nvidia":
-            from langchain_nvidia_ai_endpoints import ChatNVIDIA
+            try:
+                from langchain_nvidia_ai_endpoints import ChatNVIDIA
 
-            return ChatNVIDIA(
-                model=explicit_model or self._settings.nvidia_model,
-                api_key=self._settings.nvidia_api_key,
-                temperature=self._settings.nvidia_temperature,
-                top_p=self._settings.nvidia_top_p,
-                max_tokens=self._settings.nvidia_max_tokens,
-                reasoning_budget=self._settings.nvidia_reasoning_budget,
-                chat_template_kwargs={"enable_thinking": self._settings.nvidia_enable_thinking},
-            )
+                return ChatNVIDIA(
+                    model=explicit_model or self._settings.nvidia_model,
+                    api_key=self._settings.nvidia_api_key,
+                    temperature=self._settings.nvidia_temperature,
+                    top_p=self._settings.nvidia_top_p,
+                    max_tokens=self._settings.nvidia_max_tokens,
+                    reasoning_budget=self._settings.nvidia_reasoning_budget,
+                    chat_template_kwargs={"enable_thinking": self._settings.nvidia_enable_thinking},
+                )
+            except Exception:
+                if self._settings.groq_api_key:
+                    return ChatOpenAI(
+                        model=explicit_model or self._settings.groq_model,
+                        api_key=self._settings.groq_api_key,
+                        base_url=self._settings.groq_api_base,
+                        temperature=0.1,
+                        max_tokens=self._settings.langchain_agent_max_tokens,
+                    )
+                if self._settings.ollama_base_url:
+                    return ChatOllama(
+                        model=self._settings.ollama_model,
+                        base_url=self._settings.ollama_base_url,
+                        temperature=0.1,
+                    )
+                if self._settings.openai_api_key:
+                    return ChatOpenAI(
+                        model=explicit_model or self._settings.openai_model,
+                        api_key=self._settings.openai_api_key,
+                        temperature=0.1,
+                        max_tokens=self._settings.langchain_agent_max_tokens,
+                    )
         if provider == "groq":
             return ChatOpenAI(
                 model=explicit_model or self._settings.groq_model,
@@ -732,6 +772,7 @@ class LangChainAgentRuntime:
             "calculator",
             "events_analyze",
             "history_analyze",
+            "macro_analyze_world",
             "macro_analyze_country",
             "company_analyze",
             "policy_analyze",
@@ -982,49 +1023,135 @@ class LangChainAgentRuntime:
 
     @staticmethod
     def _fallback_memo(*, query: str, intent: str, role: str, error: str) -> StrategicMemo:
+        error_kind, decision, summary, recommendation, risk_band, worst_case, key_findings, actions, watch_items = (
+            LangChainAgentRuntime._classify_failure(error)
+        )
         return StrategicMemo(
             query=query,
-            plan_summary="LangChain runtime could not complete because the configured model backend was unavailable.",
+            plan_summary=f"LangChain runtime could not complete because of a {error_kind}.",
             tasks=[],
             confidence_band=ConfidenceBand.from_score(0.2),
             risk_policy_status="FAILED",
-            recommendation=(
-                "Reconnect the configured LLM backend or switch the orchestrator to a reachable OpenAI-compatible "
-                "or Groq model before relying on the LangChain agent path."
-            ),
-            worst_case="The agent appears live in the UI but cannot ground answers because the model backend is unreachable.",
-            risk_band="Low",
+            recommendation=recommendation,
+            worst_case=worst_case,
+            risk_band=risk_band,
             system_regime="degraded",
             regime_stability=0.0,
             scenario_tree=[],
             intent=intent,
             role=role,
-            decision="Do not trust the LangChain agent output until the model backend is reachable.",
-            summary="The LangChain agent runtime is wired, but the active model provider did not respond successfully.",
-            key_findings=[
-                "The v3 LangChain route started and accepted the request.",
-                "The model backend failed before the agent could complete tool-driven reasoning.",
-                "This is an infrastructure/provider availability issue, not a docs/tool registry issue.",
-            ],
+            decision=decision,
+            summary=summary,
+            key_findings=key_findings,
             historical_context=[],
             portfolio_impact=[],
-            recommended_actions=[
-                "Start a reachable Ollama instance or switch to OpenAI/Groq in orchestrator settings.",
-                "Retry the same thread after the model backend is healthy.",
-            ],
-            watch_items=[
-                "Model endpoint reachability",
-                "Ollama service health",
-                "Configured provider credentials",
-            ],
+            recommended_actions=actions,
+            watch_items=watch_items,
             data_quality=[
                 "No final model reasoning was produced.",
-                f"Provider error: {error[:240]}",
+                f"Runtime error: {error[:240]}",
             ],
             evidence_blocks=[
                 {
                     "title": "Runtime status",
-                    "detail": "The request reached the LangChain v3 route, but model execution failed before memo synthesis.",
+                    "detail": "The request reached the LangChain v3 route, but execution failed before memo synthesis.",
                 }
+            ],
+        )
+
+    @staticmethod
+    def _classify_failure(
+        error: str,
+    ) -> tuple[str, str, str, str, str, str, list[str], list[str], list[str]]:
+        lowered = error.lower()
+        if "request.tools" in lowered or "tool call validation failed" in lowered:
+            return (
+                "tool orchestration error",
+                "Do not trust this memo until the agent tool surface matches the tools the model is trying to call.",
+                "The LangChain runtime started, but the model attempted to call a tool that was not exposed on the request.",
+                "Align the subagent tool list with the prompts and available registry tools, then retry the same thread.",
+                "Medium",
+                "The agent can appear healthy while silently failing on unsupported tool calls, producing empty or misleading memos.",
+                [
+                    "The v3 LangChain route started and accepted the request.",
+                    "Execution failed during tool validation, before grounded reasoning completed.",
+                    "This is an orchestration/tool-surface mismatch, not a pure provider outage.",
+                ],
+                [
+                    "Expose the required tool or tighten prompts so the model only uses registered tools.",
+                    "Retry after the tool list and runtime prompts are in sync.",
+                ],
+                [
+                    "Tool names exposed in request.tools",
+                    "Subagent prompts that describe tool capabilities",
+                    "Provider support for tool-calling",
+                ],
+            )
+        if any(token in lowered for token in ("403", "forbidden", "307 temporary redirect", "name or service not known")):
+            return (
+                "source retrieval error",
+                "Do not trust this memo until the external source fetch path is fixed or replaced.",
+                "The LangChain runtime started, but an external data source could not be fetched reliably enough to ground the answer.",
+                "Adjust the web retrieval path, use a more stable source, and retry once the fetch path succeeds.",
+                "Low",
+                "The agent may synthesize around missing source data and present weakly grounded conclusions.",
+                [
+                    "The v3 LangChain route started and accepted the request.",
+                    "Execution failed while fetching one of the external sources needed for grounding.",
+                    "This is a retrieval/source issue, not necessarily a model-provider outage.",
+                ],
+                [
+                    "Add redirect-safe or alternate-source handling for brittle sites.",
+                    "Prefer first-party or API-backed sources over anti-bot pages.",
+                ],
+                [
+                    "HTTP status patterns from source sites",
+                    "Redirect handling in webpage and search tools",
+                    "Choice of source domains for market and retail-price queries",
+                ],
+            )
+        if re.search(r"\b(connection|connect|timeout|refused|unreachable|ollama|api key|authentication|unauthorized)\b", lowered):
+            return (
+                "model backend availability issue",
+                "Do not trust the LangChain agent output until the model backend is reachable.",
+                "The LangChain agent runtime is wired, but the active model provider did not respond successfully.",
+                "Reconnect the configured LLM backend or switch the orchestrator to a reachable OpenAI-compatible or Groq model before relying on the LangChain agent path.",
+                "Low",
+                "The agent appears live in the UI but cannot ground answers because the model backend is unreachable.",
+                [
+                    "The v3 LangChain route started and accepted the request.",
+                    "The model backend failed before the agent could complete tool-driven reasoning.",
+                    "This is an infrastructure/provider availability issue, not a docs/tool registry issue.",
+                ],
+                [
+                    "Start a reachable Ollama instance or switch to OpenAI/Groq in orchestrator settings.",
+                    "Retry the same thread after the model backend is healthy.",
+                ],
+                [
+                    "Model endpoint reachability",
+                    "Ollama service health",
+                    "Configured provider credentials",
+                ],
+            )
+        return (
+            "runtime execution failure",
+            "Do not trust this memo until the runtime error is resolved.",
+            "The LangChain runtime started, but execution failed before a grounded memo could be synthesized.",
+            "Inspect the runtime exception, correct the failing path, and retry the same thread.",
+            "Low",
+            "The agent may return a fallback memo that obscures the real failure mode.",
+            [
+                "The v3 LangChain route started and accepted the request.",
+                "Execution failed before memo synthesis completed.",
+                "The current fallback path does not have enough evidence to answer safely.",
+            ],
+            [
+                "Check the orchestrator logs for the original exception.",
+                "Retry after the failing runtime path is corrected.",
+            ],
+            [
+                "Original exception text",
+                "Agent transcript completeness",
+                "Tool execution trace",
             ],
         )

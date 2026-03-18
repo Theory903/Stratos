@@ -1,12 +1,24 @@
-"""spaCy entity extraction adapter.
-
-Implements `EntityExtractor` protocol.
-Extracts ORG, PERSON, GPE, MONEY, PERCENT entities.
-"""
+"""spaCy entity extraction adapter."""
 
 from __future__ import annotations
 
-import spacy
+import sys
+import types
+
+try:  # pragma: no cover - exercised indirectly in environments with spaCy
+    import spacy  # type: ignore
+except ImportError:  # pragma: no cover - lightweight fallback for tests
+    spacy = types.ModuleType("spacy")
+
+    def _missing_spacy(*args, **kwargs):
+        raise ImportError("spaCy is required to use SpacyExtractor.")
+
+    spacy.load = _missing_spacy  # type: ignore[attr-defined]
+    cli = types.ModuleType("spacy.cli")
+    cli.download = _missing_spacy  # type: ignore[attr-defined]
+    spacy.cli = cli  # type: ignore[attr-defined]
+    sys.modules.setdefault("spacy", spacy)
+    sys.modules.setdefault("spacy.cli", cli)
 
 
 class SpacyExtractor:
@@ -20,26 +32,20 @@ class SpacyExtractor:
         return f"spaCy({self.model_name})"
 
     def _load(self) -> None:
-        """Lazy load spaCy model."""
-        if self._nlp is None:
-            try:
-                self._nlp = spacy.load(self.model_name)
-            except OSError:
-                from spacy.cli import download
-                download(self.model_name)
-                self._nlp = spacy.load(self.model_name)
+        if self._nlp is not None:
+            return
+
+        try:
+            self._nlp = spacy.load(self.model_name)
+        except OSError:
+            from spacy.cli import download
+
+            download(self.model_name)
+            self._nlp = spacy.load(self.model_name)
 
     def extract(self, text: str) -> list[str]:
-        """Extract entities from text."""
         self._load()
         doc = self._nlp(text)
-        
-        # Filter for relevant entity types
         relevant_types = {"ORG", "PERSON", "GPE", "MONEY", "PERCENT"}
-        
-        entities = []
-        for ent in doc.ents:
-            if ent.label_ in relevant_types:
-                entities.append(f"{ent.text} ({ent.label_})")
-                
-        return sorted(list(set(entities)))
+        entities = [f"{ent.text} ({ent.label_})" for ent in doc.ents if ent.label_ in relevant_types]
+        return sorted(set(entities))

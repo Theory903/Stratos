@@ -58,10 +58,6 @@ class Settings(BaseSettings):
         default="http://localhost:6333",
         validation_alias=AliasChoices("DF_QDRANT_URL", "QDRANT_URL"),
     )
-    keycloak_url: str = Field(
-        default="http://localhost:8080",
-        validation_alias=AliasChoices("DF_KEYCLOAK_URL", "KEYCLOAK_URL"),
-    )
 
     # External data sources
     polygon_api_key: str = Field(
@@ -86,6 +82,54 @@ class Settings(BaseSettings):
             "MASSIVE_BASE_URL",
         ),
     )
+    upstox_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("DF_UPSTOX_API_KEY", "UPSTOX_API_KEY"),
+    )
+    upstox_base_url: str = Field(
+        default="https://api.upstox.com",
+        validation_alias=AliasChoices("DF_UPSTOX_BASE_URL", "UPSTOX_BASE_URL"),
+    )
+    coinapi_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("DF_COINAPI_API_KEY", "COINAPI_API_KEY"),
+    )
+    coinapi_base_url: str = Field(
+        default="https://rest.coinapi.io",
+        validation_alias=AliasChoices("DF_COINAPI_BASE_URL", "COINAPI_BASE_URL"),
+    )
+    reddit_client_id: str = Field(
+        default="",
+        validation_alias=AliasChoices("DF_REDDIT_CLIENT_ID", "REDDIT_CLIENT_ID"),
+    )
+    reddit_client_secret: str = Field(
+        default="",
+        validation_alias=AliasChoices("DF_REDDIT_CLIENT_SECRET", "REDDIT_CLIENT_SECRET"),
+    )
+    reddit_user_agent: str = Field(
+        default="stratos-data-fabric/0.1",
+        validation_alias=AliasChoices("DF_REDDIT_USER_AGENT", "REDDIT_USER_AGENT"),
+    )
+    x_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("DF_X_API_KEY", "X_API_KEY"),
+    )
+    x_api_secret: str = Field(
+        default="",
+        validation_alias=AliasChoices("DF_X_API_SECRET", "X_API_SECRET"),
+    )
+    x_bearer_token: str = Field(
+        default="",
+        validation_alias=AliasChoices("DF_X_BEARER_TOKEN", "X_BEARER_TOKEN"),
+    )
+    x_base_url: str = Field(
+        default="https://api.x.com/2",
+        validation_alias=AliasChoices("DF_X_BASE_URL", "X_BASE_URL"),
+    )
+    gdelt_base_url: str = Field(
+        default="https://api.gdeltproject.org/api/v2",
+        validation_alias=AliasChoices("DF_GDELT_BASE_URL", "GDELT_BASE_URL"),
+    )
     fred_api_key: str = Field(
         default="",
         validation_alias=AliasChoices("DF_FRED_API_KEY", "FRED_API_KEY"),
@@ -109,6 +153,22 @@ class Settings(BaseSettings):
     sec_user_agent: str = Field(
         default="STRATOS Research support@makeuslive.com",
         validation_alias=AliasChoices("DF_SEC_USER_AGENT", "SEC_USER_AGENT"),
+    )
+    rbi_rss_url: str = Field(
+        default="https://www.rbi.org.in/Scripts/RSS.aspx?Id=4",
+        validation_alias=AliasChoices("DF_RBI_RSS_URL", "RBI_RSS_URL"),
+    )
+    sebi_rss_url: str = Field(
+        default="https://www.sebi.gov.in/sebirss.xml",
+        validation_alias=AliasChoices("DF_SEBI_RSS_URL", "SEBI_RSS_URL"),
+    )
+    nse_rss_url: str = Field(
+        default="https://www.nseindia.com/rss-feed",
+        validation_alias=AliasChoices("DF_NSE_RSS_URL", "NSE_RSS_URL"),
+    )
+    bse_rss_url: str = Field(
+        default="https://www.bseindia.com/rss-feed.xml",
+        validation_alias=AliasChoices("DF_BSE_RSS_URL", "BSE_RSS_URL"),
     )
 
     # Service

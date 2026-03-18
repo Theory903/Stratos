@@ -22,10 +22,12 @@ class AnthropicProvider:
     def _load(self) -> None:
         if self._client is None:
             api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not api_key:
+                raise RuntimeError("ANTHROPIC_API_KEY is required to use the Anthropic provider.")
             self._client = ChatAnthropic(
                 model=self.model_name,
                 temperature=self.temperature,
-                anthropic_api_key=api_key or "sk-mock-key",
+                anthropic_api_key=api_key,
             )
 
     async def generate(self, messages: list[dict[str, str]], **kwargs: Any) -> str:

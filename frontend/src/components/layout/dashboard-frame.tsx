@@ -2,8 +2,8 @@
 
 import Link from "next/link"
 import { startTransition, useEffect, useState } from "react"
-import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react"
-import { usePathname } from "next/navigation"
+import { Bell, ChevronDown, LayoutDashboard, PanelLeft, PieChart, Settings, Sparkles, User } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
 
 import {
   DashboardMobileNav,
@@ -11,12 +11,32 @@ import {
   findActiveDashboardItem,
 } from "@/components/layout/dashboard-nav"
 import { DashboardCommandPalette } from "@/components/layout/dashboard-command-palette"
-import { MarketPulseStrip } from "@/components/layout/market-pulse-strip"
-import { Button } from "@/components/ui/button"
-import { AppSession, PulseItem, WorkspaceState } from "@/lib/app-state"
+import { HandoffProvider } from "@/lib/handoff-context"
+import { AppSession, PulseItem, WorkspaceState, WorkspaceRole } from "@/lib/app-state"
 import { cn } from "@/lib/utils"
 
 const NAV_STORAGE_KEY = "stratos.dashboard.nav-collapsed"
+
+const ROLE_LABELS: Record<WorkspaceRole, string> = {
+  pm: "PM",
+  analyst: "Analyst",
+  cfo: "CFO",
+  ceo: "CEO",
+}
+
+const ROLE_DESCRIPTIONS: Record<WorkspaceRole, string> = {
+  pm: "Portfolio Manager",
+  analyst: "Research Analyst",
+  cfo: "Chief Financial Officer",
+  ceo: "Chief Executive Officer",
+}
+
+const ROLE_ICONS: Record<WorkspaceRole, React.ComponentType<{ className?: string }>> = {
+  pm: PieChart,
+  analyst: LayoutDashboard,
+  cfo: Settings,
+  ceo: Sparkles,
+}
 
 export function DashboardFrame({
   session,
@@ -30,9 +50,13 @@ export function DashboardFrame({
   children: React.ReactNode
 }) {
   const pathname = usePathname() ?? "/dashboard"
+  const router = useRouter()
   const activeItem = findActiveDashboardItem(pathname)
   const [collapsed, setCollapsed] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+  const [roleOpen, setRoleOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [currentRole, setCurrentRole] = useState<WorkspaceRole>(workspace.role)
 
   useEffect(() => {
     setHydrated(true)
@@ -41,10 +65,7 @@ export function DashboardFrame({
   }, [])
 
   useEffect(() => {
-    if (!hydrated) {
-      return
-    }
-
+    if (!hydrated) return
     window.localStorage.setItem(NAV_STORAGE_KEY, collapsed ? "1" : "0")
   }, [collapsed, hydrated])
 
@@ -53,124 +74,187 @@ export function DashboardFrame({
       fetch("/api/workspace", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workspace: {
-            lastPath: pathname,
-          },
-        }),
+        body: JSON.stringify({ workspace: { lastPath: pathname } }),
       }).catch(() => null)
     })
   }, [pathname])
 
-  async function handleLogout() {
-    window.location.href = "/api/auth/logout"
+  const handleRoleSwitch = async (newRole: WorkspaceRole) => {
+    setCurrentRole(newRole)
+    setRoleOpen(false)
+
+    try {
+      await fetch("/api/workspace", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspace: { role: newRole } }),
+      })
+      router.refresh()
+    } catch (error) {
+      console.error("Failed to switch role:", error)
+    }
   }
 
+  const RoleIcon = ROLE_ICONS[currentRole]
+
   return (
-    <div className="relative min-h-screen overflow-x-clip">
-      <div className="pointer-events-none absolute inset-0 grid-wash opacity-40" />
-      <div
-        className={cn(
-          "relative mx-auto grid min-h-screen w-full max-w-[1760px] min-w-0 xl:grid-cols-[276px_minmax(0,1fr)]",
-          collapsed && "xl:grid-cols-[96px_1fr]"
-        )}
-      >
+    <HandoffProvider>
+      <div className="flex h-screen overflow-hidden bg-white">
+        {/* Sidebar */}
         <aside
           className={cn(
-            "hidden border-r border-slate-900/8 bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] text-white xl:sticky xl:top-0 xl:flex xl:h-screen xl:flex-col xl:overflow-hidden xl:transition-[padding,width] xl:duration-200 xl:motion-reduce:transition-none",
-            collapsed ? "px-4 py-4" : "px-4 py-5"
+            "flex flex-col border-r border-black/5 bg-[#111] transition-all duration-200",
+            collapsed ? "w-14" : "w-[200px]"
           )}
         >
-          <div className={cn("flex items-start", collapsed && "justify-center")}>
-            <Link
-              href="/dashboard"
-              className={cn(
-                "inline-flex items-center rounded-2xl border border-white/10 bg-white/8 font-mono-ui text-xs uppercase tracking-[0.24em] text-cyan-50 transition-colors duration-200 hover:bg-white/12",
-                collapsed ? "justify-center px-3 py-3" : "gap-3 px-3 py-2.5"
-              )}
-            >
-              <span className="text-cyan-200">S</span>
-              {!collapsed && <span>STRATOS</span>}
-            </Link>
-          </div>
-          <div className={cn("mt-5 flex-1 pr-1", collapsed && "pr-0")}>
-            <DashboardNav collapsed={collapsed} />
-          </div>
-        </aside>
-
-        <div className="flex min-h-screen min-w-0 flex-col">
-          <header className="sticky top-0 z-30 border-b border-border/60 bg-background/72 backdrop-blur-xl">
-            <div className="mx-auto flex w-full max-w-[1460px] min-w-0 flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-8">
-              <div className="min-w-0 flex flex-1 items-center gap-3">
-                <div className="hidden xl:block">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="rounded-xl border-border/70 bg-white/80 shadow-none"
-                    onClick={() => setCollapsed((current) => !current)}
-                    aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
-                  >
-                    {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-                  </Button>
-                </div>
-
-                <div className="min-w-0">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <h1 className="truncate text-[15px] font-semibold tracking-[-0.03em] text-slate-950 sm:text-base">
-                      {activeItem?.title ?? "Command"}
-                    </h1>
-                    {activeItem?.summary && (
-                      <p className="hidden truncate text-sm text-muted-foreground xl:block">
-                        {activeItem.summary}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="flex w-full min-w-0 items-center justify-end gap-2 sm:w-auto sm:flex-wrap xl:flex-nowrap">
-                <DashboardCommandPalette workspace={workspace} />
-                <Link
-                  href="/home"
-                  className="hidden rounded-xl border border-border/70 bg-white/80 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-border hover:text-slate-950 sm:inline-flex"
-                >
-                  Public home
-                </Link>
-                <div className="hidden max-w-[220px] rounded-xl border border-border/70 bg-white/75 px-3 py-2 text-right xl:block">
-                  <div className="font-mono-ui text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                    {workspace.workspaceName}
-                  </div>
-                  <div className="truncate text-xs font-medium text-slate-950">
-                    {session.name} · {workspace.role.toUpperCase()}
-                  </div>
-                </div>
-                <Button type="button" variant="outline" size="icon" onClick={handleLogout} aria-label="Log out">
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              </div>
+          {/* Brand */}
+          <div className={cn("flex items-center gap-3 px-4 py-5", collapsed && "justify-center px-0")}>
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white">
+              <Sparkles className="h-3.5 w-3.5 text-black" />
             </div>
-
-            <div className="border-t border-border/50 bg-white/45 px-4 py-2.5 lg:px-8 xl:hidden">
-              <div className="mx-auto w-full max-w-[1460px]">
-                <DashboardMobileNav />
-              </div>
-            </div>
-          </header>
-
-          <div className="mx-auto mt-4 flex w-full max-w-[1460px] min-w-0 flex-col gap-3 px-4 lg:px-8">
-            <MarketPulseStrip items={pulse} compact variant="light" />
-            {(workspace.sampleMode || workspace.demoMode) && (
-              <div className="rounded-[1rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                Sample data · Not your real portfolio. Saved decisions and exports retain the sample label.
-              </div>
+            {!collapsed && (
+              <span className="font-mono text-[11px] font-semibold tracking-[0.2em] text-white/90">
+                STRATOS
+              </span>
             )}
           </div>
 
-          <main className="mx-auto flex w-full max-w-[1460px] min-w-0 flex-1 flex-col gap-4 px-4 py-4 lg:px-8 lg:py-5">
+          {/* Toggle */}
+          <div className={cn("px-2 pb-3", collapsed && "px-0 flex justify-center")}>
+            <button
+              onClick={() => setCollapsed((c) => !c)}
+              className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-white/50 transition-colors hover:bg-white/5 hover:text-white/80"
+              title={collapsed ? "Expand" : "Collapse"}
+            >
+              <PanelLeft className="h-4 w-4 shrink-0" />
+              {!collapsed && <span className="text-xs">Collapse</span>}
+            </button>
+          </div>
+
+          {/* Nav */}
+          <div className="flex-1 overflow-y-auto px-2">
+            <DashboardNav collapsed={collapsed} role={currentRole} />
+          </div>
+
+          {/* Role indicator */}
+          {!collapsed && (
+            <div className="border-t border-white/10 px-3 py-2">
+              <button
+                onClick={() => setRoleOpen(!roleOpen)}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-white/60 transition-colors hover:bg-white/5 hover:text-white/80"
+              >
+                <RoleIcon className="h-3.5 w-3.5" />
+                <span className="flex-1 text-left">{ROLE_LABELS[currentRole]}</span>
+                <ChevronDown className={cn("h-3 w-3 transition-transform", roleOpen && "rotate-180")} />
+              </button>
+            </div>
+          )}
+
+          {/* Bottom */}
+          <div className="border-t border-white/10 px-2 py-3" />
+        </aside>
+
+        {/* Main */}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {/* Header */}
+          <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-black/5 px-6">
+            <div className="flex items-center gap-6">
+              <h1 className="text-sm font-medium text-black">
+                {activeItem?.title ?? "Dashboard"}
+              </h1>
+              {activeItem?.summary && (
+                <span className="text-xs text-black/30">{activeItem.summary}</span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1">
+              {/* Role Switcher */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setRoleOpen(!roleOpen)}
+                  className="flex h-8 items-center gap-2 rounded-md border border-black/10 px-3 text-xs font-medium text-black/70 transition-colors hover:border-black/20 hover:bg-black/[0.03]"
+                >
+                  <RoleIcon className="h-3 w-3" />
+                  <span>{ROLE_LABELS[currentRole]}</span>
+                  <ChevronDown className={cn("h-3 w-3 text-black/30", roleOpen && "rotate-180")} />
+                </button>
+
+                {roleOpen && (
+                  <div className="absolute top-full right-0 mt-1 w-56 rounded-lg border border-black/10 bg-white py-1 shadow-sm z-50">
+                    <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-black/40">
+                      Switch Role
+                    </div>
+                    {(Object.keys(ROLE_LABELS) as WorkspaceRole[]).map((role) => {
+                      const Icon = ROLE_ICONS[role]
+                      const isActive = currentRole === role
+                      return (
+                        <button
+                          key={role}
+                          type="button"
+                          className={cn(
+                            "flex w-full items-start gap-2.5 px-3 py-2 text-xs transition-colors",
+                            isActive
+                              ? "bg-black/[0.05] text-black"
+                              : "text-black/60 hover:bg-black/[0.03] hover:text-black/80"
+                          )}
+                          onClick={() => handleRoleSwitch(role)}
+                        >
+                          <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                          <div className="flex-1 text-left">
+                            <div className={cn("font-medium", isActive && "text-black")}>
+                              {ROLE_LABELS[role]}
+                            </div>
+                            <div className="text-[10px] text-black/40">
+                              {ROLE_DESCRIPTIONS[role]}
+                            </div>
+                          </div>
+                          {isActive && (
+                            <div className="mt-1 h-1.5 w-1.5 rounded-full bg-black/40" />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Notifications */}
+              <button className="relative flex h-8 w-8 items-center justify-center rounded-md text-black/40 transition-colors hover:bg-black/[0.03] hover:text-black/70">
+                <Bell className="h-3.5 w-3.5" />
+                {/* TODO: Show notification badge */}
+              </button>
+
+              {/* Avatar */}
+              <button className="flex h-8 w-8 items-center justify-center rounded-md bg-black/[0.07] text-xs font-medium text-black/60 transition-colors hover:bg-black/[0.1]">
+                {session.name?.charAt(0) || "U"}
+              </button>
+            </div>
+          </header>
+
+          {/* Mobile Nav */}
+          <div className="border-b border-black/5 bg-white/50 px-4 py-2 lg:hidden">
+            <DashboardMobileNav role={currentRole} />
+          </div>
+
+          {/* Content */}
+          <main className="flex-1 overflow-auto p-6">
             {children}
           </main>
         </div>
       </div>
-    </div>
+
+      {/* Command Palette */}
+      <DashboardCommandPalette
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        workspace={workspace}
+      />
+
+      {/* Click outside */}
+      {roleOpen && (
+        <div className="fixed inset-0 z-40" onClick={() => setRoleOpen(false)} />
+      )}
+    </HandoffProvider>
   )
 }

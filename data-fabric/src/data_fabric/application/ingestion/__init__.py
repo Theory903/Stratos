@@ -57,11 +57,13 @@ class IngestMarketDataUseCase:
     async def execute(self, tickers: list[str]) -> int:
         enqueued = 0
         for ticker in tickers:
+            normalized = ticker.upper()
+            provider = "coinapi" if normalized.startswith("X:") else "upstox" if "|" in normalized or normalized.startswith(("NSE", "BSE")) else "massive"
             requested = await self._refreshes.request_refresh(
                 "market",
-                ticker.upper(),
+                normalized,
                 reason="manual_ingest",
-                providers=["massive"],
+                providers=[provider],
             )
             enqueued += int(requested)
         return enqueued
@@ -74,8 +76,13 @@ class RefreshRouterUseCase:
         "world_state": ["fred"],
         "company": ["sec"],
         "country": ["world_bank"],
-        "market": ["massive"],
-        "policy": ["policy_watch"],
+        "market": ["upstox", "coinapi", "massive"],
+        "policy": ["rbi_rss", "sebi_rss"],
+        "news": ["gdelt"],
+        "social": ["reddit", "x"],
+        "announcements": ["nse_rss", "bse_rss"],
+        "orderbook": ["coinapi", "upstox"],
+        "instrument": ["upstox"],
     }
 
     def __init__(self, events: Any, documents: Any) -> None:
@@ -161,10 +168,26 @@ class ProviderIngestUseCase:
             filings = payload.get("filings", [])
             await self._documents.save_company_filings(entity_id, filings)
             await self._documents.save_company_news_snapshot(entity_id, [], provider_set=())
-        elif provider_name == "policy_watch":
+        elif provider_name in {"rbi_rss", "sebi_rss"}:
             await self._documents.save_policy_documents(
-                scope=entity_id,
+                scope="india",
                 documents=payload.get("documents", []),
+            )
+        elif provider_name == "gdelt":
+            items = payload.get("items", [])
+            await self._documents.save_company_news_snapshot(entity_id, items, provider_set=(provider_name,))
+            await self._documents.save_normalized_news(entity_id, items, provider_set=(provider_name,))
+        elif provider_name in {"reddit", "x"}:
+            await self._documents.save_social_posts(entity_id, payload.get("items", []), provider_set=(provider_name,))
+        elif provider_name in {"nse_rss", "bse_rss"}:
+            await self._documents.save_exchange_announcements(entity_id, payload.get("items", []), provider_set=(provider_name,))
+        elif provider_name == "upstox" and entity_type == "instrument":
+            await self._documents.save_instrument_master(entity_id, payload.get("instrument", {}), provider_set=(provider_name,))
+        elif provider_name in {"coinapi", "upstox"} and entity_type == "orderbook":
+            await self._documents.save_order_book_snapshot(
+                instrument_id=entity_id,
+                data=payload.get("snapshot", {}),
+                provider_set=(provider_name,),
             )
 
         await self._events.publish(
@@ -200,8 +223,30 @@ class ProviderIngestUseCase:
         if provider_name == "massive":
             bars = await provider.fetch(tickers=[entity_id])
             return {"bars": bars, "ticker": entity_id}, "market_bars"
-        if provider_name == "policy_watch":
-            return {"documents": [], "scope": entity_id}, "policy_watch"
+        if provider_name == "upstox":
+            if entity_type == "orderbook":
+                snapshot = await provider.fetch_order_book(entity_id)
+                return {"snapshot": snapshot, "instrument_id": entity_id}, "order_book"
+            if entity_type == "instrument":
+                instrument = await provider.fetch_instrument_master(entity_id)
+                return {"instrument": instrument, "instrument_id": entity_id}, "instrument_master"
+            bars = await provider.fetch(tickers=[entity_id])
+            return {"bars": bars, "ticker": entity_id}, "market_bars"
+        if provider_name == "coinapi":
+            if entity_type == "orderbook":
+                snapshot = await provider.fetch_order_book(entity_id)
+                return {"snapshot": snapshot, "instrument_id": entity_id}, "order_book"
+            bars = await provider.fetch(tickers=[entity_id])
+            return {"bars": bars, "ticker": entity_id}, "market_bars"
+        if provider_name in {"rbi_rss", "sebi_rss", "nse_rss", "bse_rss"}:
+            items = await provider.fetch(entity_id=entity_id)
+            return {"documents": items, "scope": entity_id, "items": items}, "normalized_events"
+        if provider_name == "gdelt":
+            items = await provider.fetch(entity_id=entity_id)
+            return {"items": items, "entity_id": entity_id}, "normalized_events"
+        if provider_name in {"reddit", "x"}:
+            items = await provider.fetch(entity_id=entity_id)
+            return {"items": items, "entity_id": entity_id}, "normalized_events"
         raise DataIngestionError(provider_name, f"Unsupported ingest route for {entity_type}")
 
 

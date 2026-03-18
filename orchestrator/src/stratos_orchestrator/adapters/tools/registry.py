@@ -69,21 +69,35 @@ class ToolRegistry:
 def get_registry(data_fabric_url: str | None = None) -> ToolRegistry:
     """Factory to get fully populated registry."""
     from stratos_orchestrator.adapters.tools import (
+        alpha_vantage_tool,
         calculator_tool,
+        coingecko_tool,
         company_tool,
+        company_news_tool,
         events_tool,
+        finnhub_tool,
         geopolitics_tool,
         fraud_tool,
         history_tool,
         industry_tool,
+        market_tool,
         macro_tool,
+        macro_world_tool,
+        newsapi_tool,
+        orderbook_tool,
         policy_tool,
+        policy_events_tool,
+        provider_health_tool,
+        replay_decision_tool,
+        decision_context_tool,
         portfolio_state_tool,
         portfolio_tool,
         regime_tool,
+        social_tool,
         tax_tool,
         web_search_tool,
         webpage_read_tool,
+        yahoo_finance_tool,
     )
     from stratos_orchestrator.config import Settings
 
@@ -93,10 +107,28 @@ def get_registry(data_fabric_url: str | None = None) -> ToolRegistry:
 
     # Data Fabric tools (Macro, Company)
     registry.register(macro_tool.MacroTool(data_fabric_base))
+    registry.register(macro_world_tool.MacroWorldTool(data_fabric_base))
     registry.register(company_tool.CompanyTool(data_fabric_base))
+    registry.register(company_news_tool.CompanyNewsTool(data_fabric_base))
+    registry.register(social_tool.SocialTool(data_fabric_base))
+    registry.register(market_tool.MarketTool(data_fabric_base))
+    registry.register(orderbook_tool.OrderBookTool(data_fabric_base))
     registry.register(events_tool.EventsTool(data_fabric_base))
     registry.register(history_tool.HistoryTool(data_fabric_base))
+    registry.register(policy_events_tool.PolicyEventsTool(data_fabric_base))
+    registry.register(decision_context_tool.DecisionContextTool(data_fabric_base))
+    registry.register(provider_health_tool.ProviderHealthTool(data_fabric_base))
+    registry.register(replay_decision_tool.ReplayDecisionTool(data_fabric_base))
     registry.register(portfolio_state_tool.PortfolioStateTool(data_fabric_base))
+
+    # External data source tools (free or paid APIs)
+    registry.register(yahoo_finance_tool.YahooFinanceTool())
+    registry.register(coingecko_tool.CoinGeckoTool())
+    
+    # Paid API tools (require API key and budget)
+    registry.register(alpha_vantage_tool.AlphaVantageTool())
+    registry.register(finnhub_tool.FinnhubTool())
+    registry.register(newsapi_tool.NewsAPITool())
 
     # ML tools (Fraud, Regime)
     registry.register(fraud_tool.FraudTool(settings.ml_service_url))

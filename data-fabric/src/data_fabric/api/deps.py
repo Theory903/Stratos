@@ -26,19 +26,25 @@ from data_fabric.application import (
     QueryCompareMetricUseCase,
     QueryCountryUseCase,
     QueryDecisionQueueUseCase,
+    QueryDecisionContextUseCase,
     QueryEventClustersUseCase,
     QueryEventPulseUseCase,
+    QueryExchangeAnnouncementsUseCase,
     QueryEventsFeedUseCase,
     QueryMarketHistoryUseCase,
     QueryMarketRegimeUseCase,
+    QueryOrderBookUseCase,
+    QueryProviderHealthUseCase,
     QueryPortfolioDecisionLogUseCase,
     QueryPortfolioExposureUseCase,
     QueryPortfolioRiskUseCase,
     QueryPortfolioUseCase,
     QueryPolicyEventsUseCase,
+    QuerySocialFeedUseCase,
     QuerySimilarRegimesUseCase,
     QueryWorldStateUseCase,
     RefreshRequestManager,
+    ReplayDecisionUseCase,
     RunPortfolioRebalanceUseCase,
     RunPortfolioScenarioUseCase,
     SearchPolicyUseCase,
@@ -88,6 +94,10 @@ def get_fx_source(request: Request) -> OandaFXSource:
 
 def get_country_source(request: Request) -> WorldBankCountrySource:
     return request.app.state.country_source
+
+
+def get_provider_sources(request: Request) -> dict[str, object]:
+    return request.app.state.provider_sources
 
 
 def get_refresh_manager(
@@ -172,6 +182,27 @@ def get_v2_query_news_use_case(
     refreshes: RefreshRequestManager = Depends(get_refresh_manager),
 ) -> QueryCompanyNewsUseCase:
     return QueryCompanyNewsUseCase(documents=documents, refreshes=refreshes)
+
+
+def get_v2_query_social_use_case(
+    documents: MongoDocumentStore = Depends(get_document_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QuerySocialFeedUseCase:
+    return QuerySocialFeedUseCase(documents=documents, refreshes=refreshes)
+
+
+def get_v2_query_exchange_announcements_use_case(
+    documents: MongoDocumentStore = Depends(get_document_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QueryExchangeAnnouncementsUseCase:
+    return QueryExchangeAnnouncementsUseCase(documents=documents, refreshes=refreshes)
+
+
+def get_v2_query_order_book_use_case(
+    documents: MongoDocumentStore = Depends(get_document_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QueryOrderBookUseCase:
+    return QueryOrderBookUseCase(documents=documents, refreshes=refreshes)
 
 
 def get_v2_query_policy_events_use_case(
@@ -311,6 +342,29 @@ def get_v2_decision_queue_use_case(
     refreshes: RefreshRequestManager = Depends(get_refresh_manager),
 ) -> QueryDecisionQueueUseCase:
     return QueryDecisionQueueUseCase(documents=documents, store=store, refreshes=refreshes)
+
+
+def get_v2_decision_context_use_case(
+    documents: MongoDocumentStore = Depends(get_document_store),
+    store: PostgresDataStore = Depends(get_data_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> QueryDecisionContextUseCase:
+    return QueryDecisionContextUseCase(documents=documents, store=store, refreshes=refreshes)
+
+
+def get_v2_replay_decision_use_case(
+    documents: MongoDocumentStore = Depends(get_document_store),
+    store: PostgresDataStore = Depends(get_data_store),
+    refreshes: RefreshRequestManager = Depends(get_refresh_manager),
+) -> ReplayDecisionUseCase:
+    return ReplayDecisionUseCase(documents=documents, store=store, refreshes=refreshes)
+
+
+def get_v2_provider_health_use_case(
+    providers: dict[str, object] = Depends(get_provider_sources),
+    settings: Settings = Depends(get_settings),
+) -> QueryProviderHealthUseCase:
+    return QueryProviderHealthUseCase(providers=providers, settings=settings)
 
 
 def get_v2_ingest_use_case(

@@ -9,10 +9,16 @@ from data_fabric.adapters.document_store import MongoDocumentStore
 from data_fabric.adapters.events import KafkaEventPublisher
 from data_fabric.adapters.object_store import MinioObjectStore
 from data_fabric.adapters.providers import (
+    CoinAPIMarketSource,
     FREDMacroSource,
+    GDELTEventSource,
     PolygonMarketSource,
+    RedditSocialSource,
+    RssFeedSource,
     SecEdgarSource,
+    UpstoxMarketSource,
     WorldBankCountrySource,
+    XSocialSource,
 )
 from data_fabric.config import Settings
 
@@ -55,6 +61,44 @@ async def build_runtime() -> WorkerRuntime:
         "massive": PolygonMarketSource(
             api_key=settings.market_api_key,
             base_url=settings.market_base_url,
+        ),
+        "upstox": UpstoxMarketSource(
+            api_key=settings.upstox_api_key,
+            base_url=settings.upstox_base_url,
+        ),
+        "coinapi": CoinAPIMarketSource(
+            api_key=settings.coinapi_api_key,
+            base_url=settings.coinapi_base_url,
+        ),
+        "gdelt": GDELTEventSource(base_url=settings.gdelt_base_url),
+        "reddit": RedditSocialSource(
+            client_id=settings.reddit_client_id,
+            client_secret=settings.reddit_client_secret,
+            user_agent=settings.reddit_user_agent,
+        ),
+        "x": XSocialSource(
+            bearer_token=settings.x_bearer_token,
+            base_url=settings.x_base_url,
+        ),
+        "rbi_rss": RssFeedSource(
+            name="rbi_rss",
+            feed_url=settings.rbi_rss_url,
+            source_type="policy",
+        ),
+        "sebi_rss": RssFeedSource(
+            name="sebi_rss",
+            feed_url=settings.sebi_rss_url,
+            source_type="policy",
+        ),
+        "nse_rss": RssFeedSource(
+            name="nse_rss",
+            feed_url=settings.nse_rss_url,
+            source_type="exchange_announcement",
+        ),
+        "bse_rss": RssFeedSource(
+            name="bse_rss",
+            feed_url=settings.bse_rss_url,
+            source_type="exchange_announcement",
         ),
     }
     return WorkerRuntime(

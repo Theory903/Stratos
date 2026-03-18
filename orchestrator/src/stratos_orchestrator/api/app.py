@@ -6,6 +6,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from stratos_orchestrator.api.routes import router
+from stratos_orchestrator.api.decision_routes import router as decision_router
+from stratos_orchestrator.api.signals_routes import router as signals_router
+from stratos_orchestrator.api.workspace_routes import router as workspace_router
 from stratos_orchestrator.config import Settings
 from stratos_orchestrator.logging import get_logger
 
@@ -40,5 +43,8 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(router)
+    app.include_router(decision_router)
+    app.include_router(signals_router)
+    app.include_router(workspace_router)
     
     return app

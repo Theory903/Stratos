@@ -7,7 +7,7 @@ from functools import lru_cache
 from stratos_orchestrator.adapters.llm.ollama import OllamaProvider
 from stratos_orchestrator.adapters.llm.openai import OpenAIProvider
 from stratos_orchestrator.adapters.tools.registry import ToolRegistry, get_registry
-from stratos_orchestrator.application import LangChainAgentRuntime, OrchestrateUseCase, V2OrchestrateUseCase, V2StreamOrchestrateUseCase
+from stratos_orchestrator.application import LangChainAgentRuntime, OrchestrateUseCase, V2OrchestrateUseCase, V2StreamOrchestrateUseCase, V4GraphRuntime, V5GraphRuntime, V5GraphRuntime
 from stratos_orchestrator.application.execute_tool import ExecuteToolUseCase
 from stratos_orchestrator.application.generate_memo import GenerateMemoUseCase
 from stratos_orchestrator.application.plan_tasks import PlanTasksUseCase
@@ -26,7 +26,7 @@ def get_llm_provider() -> LLMProvider:
     settings = get_settings()
 
     if settings.llm_provider == "ollama":
-        return OllamaProvider(model=settings.ollama_model)
+        return OllamaProvider(model=settings.ollama_model, base_url=settings.ollama_base_url)
     if settings.llm_provider == "nvidia":
         from stratos_orchestrator.adapters.llm.nvidia import NVIDIAProvider
 
@@ -116,4 +116,21 @@ def get_langchain_agent_runtime() -> LangChainAgentRuntime:
     return LangChainAgentRuntime(
         settings=get_settings(),
         tools=get_tool_registry_v2(),
+    )
+
+
+@lru_cache
+def get_v4_graph_runtime() -> V4GraphRuntime:
+    return V4GraphRuntime(
+        settings=get_settings(),
+        tools=get_tool_registry_v2(),
+        general_runtime=get_langchain_agent_runtime(),
+    )
+
+
+@lru_cache
+def get_v5_graph_runtime() -> V5GraphRuntime:
+    return V5GraphRuntime(
+        settings=get_settings(),
+        tools_registry=get_tool_registry_v2(),
     )

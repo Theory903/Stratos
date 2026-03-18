@@ -18,6 +18,16 @@ class AssetClass(StrEnum):
     FX = "fx"
 
 
+class SourceAuthority(StrEnum):
+    """Relative authority of a source used in finance workflows."""
+
+    A0 = "A0"
+    A1 = "A1"
+    A2 = "A2"
+    A3 = "A3"
+    A4 = "A4"
+
+
 @dataclass(frozen=True, slots=True)
 class WorldState:
     """Global macro state snapshot with Bi-Temporal support."""
@@ -68,3 +78,59 @@ class MarketTick:
     close: Decimal
     volume: int
     stored_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+
+@dataclass(frozen=True, slots=True)
+class InstrumentProfile:
+    """Tradable instrument metadata used by the finance council."""
+
+    instrument_id: str
+    ticker: str
+    venue: str
+    asset_class: AssetClass
+    display_name: str
+    currency: str = "USD"
+    metadata: dict[str, str] = field(default_factory=dict)
+    stored_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+
+@dataclass(frozen=True, slots=True)
+class OrderBookSnapshot:
+    """Top-of-book and depth summary for a tradable instrument."""
+
+    instrument_id: str
+    ticker: str
+    venue: str
+    bid_price: Decimal
+    ask_price: Decimal
+    bid_size: Decimal
+    ask_size: Decimal
+    spread_bps: float
+    depth_notional: Decimal
+    imbalance: float
+    timestamp: datetime
+    stored_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+
+@dataclass(frozen=True, slots=True)
+class NormalizedEvent:
+    """Canonical event shape used by news, social, policy, and exchange feeds."""
+
+    event_id: str
+    asset_scope: str
+    entity_ids: tuple[str, ...]
+    headline: str
+    summary: str
+    source_type: str
+    provider: str
+    authority_grade: SourceAuthority
+    published_at: datetime
+    ingested_at: datetime
+    relevance: float = 0.0
+    novelty: float = 0.0
+    sentiment: float = 0.0
+    market_session: str = "continuous"
+    source_url: str | None = None
+    body_ref: str | None = None
+    dedupe_hash: str = ""
+    metadata: dict[str, str] = field(default_factory=dict)

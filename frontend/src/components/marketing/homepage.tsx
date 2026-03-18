@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ArrowRight, Bot, BriefcaseBusiness, LayoutDashboard } from "lucide-react"
 
 import { PulseItem } from "@/lib/app-state"
+import { DEMO_MODE_ENABLED } from "@/lib/runtime-flags"
 import { LiveHomePulse } from "@/components/marketing/live-home-pulse"
 import { HomepageTopNav } from "@/components/marketing/homepage-top-nav"
 
@@ -83,12 +84,14 @@ export function MarketingHomePage({
                 >
                   {authenticated ? "Open workspace" : "Start workspace"} <ArrowRight className="h-4 w-4" />
                 </Link>
-                <Link
-                  href="/api/demo"
-                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-800 bg-slate-950/60 px-5 py-3 text-sm font-semibold text-slate-200 transition-colors hover:border-slate-700 hover:text-white"
-                >
-                  Try sample workspace
-                </Link>
+                {DEMO_MODE_ENABLED ? (
+                  <Link
+                    href="/api/demo"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-800 bg-slate-950/60 px-5 py-3 text-sm font-semibold text-slate-200 transition-colors hover:border-slate-700 hover:text-white"
+                  >
+                    Try sample workspace
+                  </Link>
+                ) : null}
               </div>
               <p className="mt-4 text-xs text-slate-500">
                 No credit card · Role-aware from day one · India + US + BTC scope
@@ -228,12 +231,14 @@ export function MarketingHomePage({
               >
                 {authenticated ? "Open workspace" : "Start workspace"} <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link
-                href="/api/demo"
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-800 bg-slate-950/60 px-5 py-3 text-sm font-semibold text-slate-200 transition-colors hover:border-slate-700 hover:text-white"
-              >
-                Try sample workspace
-              </Link>
+              {DEMO_MODE_ENABLED ? (
+                <Link
+                  href="/api/demo"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-800 bg-slate-950/60 px-5 py-3 text-sm font-semibold text-slate-200 transition-colors hover:border-slate-700 hover:text-white"
+                >
+                  Try sample workspace
+                </Link>
+              ) : null}
             </div>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-5 font-mono-ui text-[11px] uppercase tracking-[0.22em] text-slate-600">
               <span>Docs</span>

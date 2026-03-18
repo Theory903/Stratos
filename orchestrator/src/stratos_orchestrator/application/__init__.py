@@ -11,6 +11,9 @@ from stratos_orchestrator.domain.entities import (
 )
 from stratos_orchestrator.domain.ports import LLMProvider, OutputFormatter, ToolExecutor
 from stratos_orchestrator.application.langchain_v3 import LangChainAgentRuntime
+from stratos_orchestrator.application.finance_council import FinanceCouncilRuntime
+from stratos_orchestrator.application.v4_graph import V4GraphRuntime
+from stratos_orchestrator.application.v5_runtime import V5GraphRuntime
 from stratos_orchestrator.application.v2 import V2OrchestrateUseCase, V2StreamOrchestrateUseCase
 
 
@@ -105,4 +108,12 @@ class OrchestrateUseCase:
         )
 
 
-__all__ = ["LangChainAgentRuntime", "OrchestrateUseCase", "V2OrchestrateUseCase", "V2StreamOrchestrateUseCase"]
+__all__ = [
+    "FinanceCouncilRuntime",
+    "LangChainAgentRuntime",
+    "V4GraphRuntime",
+    "V5GraphRuntime",
+    "OrchestrateUseCase",
+    "V2OrchestrateUseCase",
+    "V2StreamOrchestrateUseCase",
+]

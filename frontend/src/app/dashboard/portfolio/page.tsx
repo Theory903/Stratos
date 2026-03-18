@@ -19,19 +19,6 @@ import { ActionCluster, SegmentedControl } from "@/components/dashboard/shell"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-const SAMPLE_PORTFOLIO: PortfolioSnapshot = {
-  name: "primary",
-  benchmark: "SPY",
-  constraints: {
-    max_single_name_weight: 0.6,
-    max_crypto_weight: 0.35,
-  },
-  positions: [
-    { ticker: "AAPL", quantity: 120, average_cost: 188, asset_class: "equity" },
-    { ticker: "X:BTCUSD", quantity: 0.8, average_cost: 68000, asset_class: "crypto" },
-  ],
-}
-
 type PortfolioWorkspaceState = {
   decisionQueue: SnapshotEnvelope<DecisionQueueSnapshot> | null
   exposures: SnapshotEnvelope<PortfolioExposureSnapshot> | null
@@ -53,8 +40,7 @@ export default function PortfolioPage() {
   })
   const [scenario, setScenario] = useState<PortfolioScenarioResult | null>(null)
   const [rebalance, setRebalance] = useState<PortfolioRebalanceResult | null>(null)
-  const [actionLoading, setActionLoading] = useState<"sample" | "scenario" | "rebalance" | null>(null)
-  const [reloadKey, setReloadKey] = useState(0)
+  const [actionLoading, setActionLoading] = useState<"scenario" | "rebalance" | null>(null)
   const [activeView, setActiveView] = useState<PortfolioView>("book")
 
   useEffect(() => {
@@ -119,27 +105,23 @@ export default function PortfolioPage() {
     return () => {
       active = false
     }
-  }, [reloadKey])
+  }, [])
 
   const pendingItems = Object.values(pending)
   const portfolio = workspace.portfolio?.data
   const exposures = workspace.exposures?.data
   const risk = workspace.risk?.data
   const decisionQueue = workspace.decisionQueue?.data
-
-  async function loadSamplePortfolio() {
-    setActionLoading("sample")
-    try {
-      await api.dataFabricV2.post("/portfolio/positions", SAMPLE_PORTFOLIO)
-      startTransition(() => {
-        setReloadKey((current) => current + 1)
-      })
-    } catch (error) {
-      console.error("Failed to load sample portfolio", error)
-    } finally {
-      setActionLoading(null)
-    }
-  }
+  const workspaceHealth = summarizeWorkspaceHealth({
+    loading,
+    missingPortfolio,
+    pendingCount: pendingItems.length,
+    portfolioFreshness: workspace.portfolio?.meta.freshness,
+    exposuresFreshness: workspace.exposures?.meta.freshness,
+    riskFreshness: workspace.risk?.meta.freshness,
+    queueFreshness: workspace.decisionQueue?.meta.freshness,
+    riskFlags: risk?.risk_flags ?? [],
+  })
 
   async function runScenario() {
     setActionLoading("scenario")
@@ -178,10 +160,14 @@ export default function PortfolioPage() {
       {missingPortfolio && (
         <Card className="border-dashed">
           <CardContent className="flex flex-col gap-3 pt-6 text-sm text-muted-foreground">
-            <div>No portfolio yet. STRATOS will not create one for you.</div>
+            <div>No live portfolio snapshot is available for `primary`.</div>
+            <div>
+              Portfolio views stay empty until real positions are ingested into Data Fabric. STRATOS does not seed
+              sample books in production.
+            </div>
             <div className="flex flex-wrap gap-3">
-              <Button disabled={actionLoading !== null} onClick={loadSamplePortfolio}>
-                {actionLoading === "sample" ? "Loading..." : "Load sample PM book"}
+              <Button asChild variant="outline">
+                <Link href="/dashboard/agent?role=pm&mode=memo">Open finance agent</Link>
               </Button>
             </div>
           </CardContent>
@@ -196,6 +182,8 @@ export default function PortfolioPage() {
           </CardContent>
         </Card>
       )}
+
+      {workspaceHealth && <PortfolioWorkspaceHealthCard health={workspaceHealth} />}
 
       <div className="grid gap-4 lg:grid-cols-4">
         <StatCard
@@ -431,7 +419,7 @@ export default function PortfolioPage() {
               <ActionCluster
                 items={[
                   { href: "/dashboard/events", label: "Check events", tone: "outline" },
-                  { href: "/dashboard/agent", label: "Write memo" },
+                  { href: "/dashboard/agent?role=pm&mode=memo", label: "Run finance council" },
                 ]}
               />
             </CardContent>
@@ -493,4 +481,119 @@ function QueueBlock({ title, items }: { title: string; items: string[] }) {
       )}
     </div>
   )
+}
+
+type PortfolioWorkspaceHealth = {
+  status: "healthy" | "degraded" | "building"
+  summary: string
+  detail: string
+  freshness: Array<{ label: string; value: string }>
+  flags: string[]
+}
+
+function PortfolioWorkspaceHealthCard({ health }: { health: PortfolioWorkspaceHealth }) {
+  return (
+    <Card className={health.status === "healthy" ? "border-emerald-200/70" : "border-amber-200/70"}>
+      <CardHeader className="gap-2">
+        <CardTitle className="text-base">Finance Workspace Health</CardTitle>
+        <div className="text-sm text-muted-foreground">{health.summary}</div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="text-sm text-muted-foreground">{health.detail}</div>
+        <div className="flex flex-wrap gap-2">
+          {health.freshness.map((item) => (
+            <span
+              key={item.label}
+              className="inline-flex rounded-full border border-border/80 bg-white/75 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              {item.label} {item.value}
+            </span>
+          ))}
+        </div>
+        {health.flags.length > 0 && (
+          <div className="space-y-2">
+            {health.flags.map((flag) => (
+              <div key={flag} className="rounded-lg border bg-muted/20 p-3 text-sm">
+                {flag}
+              </div>
+            ))}
+          </div>
+        )}
+        {health.status !== "healthy" && (
+          <ActionCluster
+            items={[
+              { href: "/dashboard/agent?role=pm&mode=memo", label: "Run finance council" },
+              { href: "/dashboard/events", label: "Check event feeds", tone: "outline" },
+            ]}
+          />
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function summarizeWorkspaceHealth({
+  loading,
+  missingPortfolio,
+  pendingCount,
+  portfolioFreshness,
+  exposuresFreshness,
+  riskFreshness,
+  queueFreshness,
+  riskFlags,
+}: {
+  loading: boolean
+  missingPortfolio: boolean
+  pendingCount: number
+  portfolioFreshness?: string
+  exposuresFreshness?: string
+  riskFreshness?: string
+  queueFreshness?: string
+  riskFlags: string[]
+}): PortfolioWorkspaceHealth | null {
+  if (missingPortfolio) {
+    return null
+  }
+
+  const freshness = [
+    { label: "Book", value: portfolioFreshness ?? (loading ? "building" : "missing") },
+    { label: "Exposure", value: exposuresFreshness ?? (loading ? "building" : "missing") },
+    { label: "Risk", value: riskFreshness ?? (loading ? "building" : "missing") },
+    { label: "Queue", value: queueFreshness ?? (loading ? "building" : "missing") },
+  ]
+
+  const degradedViews = freshness
+    .filter((item) => item.value !== "fresh" && item.value !== "building")
+    .map((item) => item.label.toLowerCase())
+
+  if (loading || pendingCount > 0) {
+    return {
+      status: "building",
+      summary: "Finance snapshots are still building.",
+      detail: "Market book, exposure, risk, and decision queue are waiting on live refreshes.",
+      freshness,
+      flags: [],
+    }
+  }
+
+  if (degradedViews.length > 0 || riskFlags.length > 0) {
+    return {
+      status: "degraded",
+      summary: "Portfolio decisions should be treated as degraded.",
+      detail:
+        degradedViews.length > 0
+          ? `The ${degradedViews.join(", ")} view${degradedViews.length === 1 ? " is" : "s are"} not fresh.`
+          : "Risk controls are flagging the current workspace.",
+      freshness,
+      flags: riskFlags.slice(0, 3),
+    }
+  }
+
+  return {
+    status: "healthy",
+    summary: "Portfolio, risk, and action views are fresh.",
+    detail: "This workspace is ready for scenario or memo generation.",
+    freshness,
+    flags: [],
+  }
 }

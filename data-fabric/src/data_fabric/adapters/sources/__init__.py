@@ -38,21 +38,39 @@ class PolygonMarketSource:
             tickers = [tickers]
 
         results: list[dict] = []
-        for ticker in tickers:
+         for ticker in tickers:
+            normalized_ticker = self._normalize_provider_ticker(str(ticker))
+            if normalized_ticker is None:
+                logger.info(
+                    "Skipping unsupported market ticker for %s provider: %s",
+                    self.source_name,
+                    ticker,
+                )
+                continue
             try:
-                data = await self._fetch_ticker(str(ticker))
+                data = await self._fetch_ticker(str(ticker), normalized_ticker)
                 results.extend(data)
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == 404:
+                    logger.warning(
+                        "Provider %s does not support ticker %s (normalized=%s)",
+                        self.source_name,
+                        ticker,
+                        normalized_ticker,
+                    )
+                    continue
+                logger.exception("Failed to fetch %s from Polygon", ticker)
             except Exception:
                 logger.exception("Failed to fetch %s from Polygon", ticker)
         return results
 
-    async def _fetch_ticker(self, ticker: str) -> list[dict]:
+    async def _fetch_ticker(self, ticker: str, provider_ticker: str) -> list[dict]:
         """Fetch recent daily bars for a single ticker."""
         asset_class = self._infer_asset_class(ticker)
         end_date = datetime.now(timezone.utc).date()
         start_date = end_date - timedelta(days=90)
         url = (
-            f"{self._base_url}/v2/aggs/ticker/{ticker}/range/1/day/"
+            f"{self._base_url}/v2/aggs/ticker/{provider_ticker}/range/1/day/"
             f"{start_date.isoformat()}/{end_date.isoformat()}"
         )
         response = await self._client.get(
@@ -80,9 +98,25 @@ class PolygonMarketSource:
         normalized = ticker.upper()
         if normalized.startswith("X:"):
             return "crypto"
-        if normalized.startswith("C:"):
+        if normalized.startswith(("C:", "FX:")):
             return "fx"
         return "equity"
+
+    @staticmethod
+    def _normalize_provider_ticker(ticker: str) -> str | None:
+        normalized = ticker.upper().strip()
+        if not normalized:
+            return None
+        if normalized.startswith(("INDEX:", "CMD:", "MACRO:")):
+            return None
+        if normalized.startswith("FX:"):
+            pair = normalized.removeprefix("FX:")
+            return f"C:{pair}" if len(pair) == 6 and pair.isalpha() else None
+        if normalized.startswith(("X:", "C:")):
+            return normalized
+        if normalized.isalnum() and 1 < len(normalized) <= 8:
+            return normalized
+        return None
 
     async def fetch_company_details(self, ticker: str) -> dict:
         """Fetch company details from Massive/Polygon reference endpoints."""

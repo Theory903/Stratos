@@ -12,6 +12,7 @@ import {
   WorkspaceState,
   createDefaultDraft,
 } from "@/lib/app-state"
+import { DEMO_MODE_ENABLED } from "@/lib/runtime-flags"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -120,6 +121,12 @@ export function OnboardingWizard({
   const [csvErrors, setCsvErrors] = useState<string[]>([])
   const [busy, setBusy] = useState<null | "save" | "portfolio" | "complete">(null)
   const [notice, setNotice] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!DEMO_MODE_ENABLED && importMode === "sample") {
+      setImportMode("none")
+    }
+  }, [importMode])
 
   useEffect(() => {
     const stored = window.localStorage.getItem(localStorageKey)
@@ -388,7 +395,7 @@ export function OnboardingWizard({
               options={[
                 ["manual", "Add manually"],
                 ["csv", "Upload CSV"],
-                ["sample", "Use sample book"],
+                ...(DEMO_MODE_ENABLED ? ([["sample", "Use sample book"]] as const) : []),
                 ["none", "Skip for now"],
               ]}
               value={importMode}
@@ -622,7 +629,7 @@ function ChoiceGrid({
   onChange,
 }: {
   label: string
-  options: Array<[string, string]>
+  options: ReadonlyArray<readonly [string, string]>
   value: string
   onChange: (value: string) => void
 }) {
@@ -658,4 +665,3 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
     </div>
   )
 }
-

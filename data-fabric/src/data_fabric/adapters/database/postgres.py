@@ -205,8 +205,9 @@ class PostgresDataStore:
         ticker: str,
         *,
         limit: int = 100,
+        as_of: datetime | None = None,
     ) -> SnapshotRecord[list[MarketTick]] | None:
-        ticks = await self.get_market_ticks(ticker, limit=limit)
+        ticks = await self.get_market_ticks(ticker, limit=limit, as_of=as_of)
         if not ticks:
             return None
         async with self._session_factory() as session:
@@ -215,6 +216,8 @@ class PostgresDataStore:
                 .where(MarketBarModel.ticker == ticker.upper())
                 .order_by(desc(MarketBarModel.stored_at))
             )
+            if as_of is not None:
+                stmt = stmt.where(MarketBarModel.stored_at <= as_of)
             result = await session.execute(stmt.limit(1))
             model = result.scalar_one_or_none()
             if model is None:
@@ -250,9 +253,12 @@ class PostgresDataStore:
                 )
             return grouped
 
-    async def get_market_regime_snapshot(self) -> SnapshotRecord[dict] | None:
+    async def get_market_regime_snapshot(self, as_of: datetime | None = None) -> SnapshotRecord[dict] | None:
         async with self._session_factory() as session:
-            stmt = select(MarketRegimeSnapshotModel).order_by(
+            stmt = select(MarketRegimeSnapshotModel)
+            if as_of is not None:
+                stmt = stmt.where(MarketRegimeSnapshotModel.stored_at <= as_of)
+            stmt = stmt.order_by(
                 desc(MarketRegimeSnapshotModel.computed_at),
                 desc(MarketRegimeSnapshotModel.stored_at),
             )

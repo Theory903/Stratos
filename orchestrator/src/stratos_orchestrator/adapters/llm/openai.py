@@ -32,14 +32,12 @@ class OpenAIProvider(LLMProvider):
         if self._client is None:
             api_key = self.api_key or os.getenv("OPENAI_API_KEY")
             if not api_key:
-                # Fallback for dev/test if no key provided
-                # In prod, this should raise error or be handled by config
-                pass
+                raise RuntimeError("OPENAI_API_KEY is required to use the OpenAI provider.")
 
             client_kwargs = {
                 "model": self.model_name,
                 "temperature": self.temperature,
-                "openai_api_key": api_key or "sk-mock-key",  # Allow mock for tests
+                "openai_api_key": api_key,
             }
             if self.api_base:
                 client_kwargs["openai_api_base"] = self.api_base

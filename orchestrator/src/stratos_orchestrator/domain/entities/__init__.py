@@ -93,4 +93,74 @@ class StrategicMemo:
     watch_items: list[str] = field(default_factory=list)
     data_quality: list[str] = field(default_factory=list)
     evidence_blocks: list[dict] = field(default_factory=list)
+    specialist_views: list[dict] = field(default_factory=list)
     generated_at: datetime = field(default_factory=datetime.utcnow)
+    decision_packet: dict | None = None
+    analyst_signals: list[dict] = field(default_factory=list)
+    risk_verdict: dict | None = None
+    freshness_summary: dict | None = None
+    provider_health: dict | None = None
+    replay_summary: dict | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AnalystSignal:
+    analyst: str
+    instrument: str
+    signal_score: float
+    confidence: float
+    direction: str
+    thesis: str
+    evidence_ids: list[str] = field(default_factory=list)
+    citations: list[str] = field(default_factory=list)
+    freshness_ok: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class DebateMemo:
+    bull_case: str
+    bear_case: str
+    synthesis: str
+    verdict: str
+    confidence: float
+
+
+@dataclass(frozen=True, slots=True)
+class TradeIntent:
+    instrument: str
+    action: str
+    score: float
+    confidence: float
+    thesis: str
+    entry_zone: str
+    stop_loss: str
+    take_profit: str
+    max_holding_period: str
+
+
+@dataclass(frozen=True, slots=True)
+class RiskVerdict:
+    allowed: bool
+    regime: str
+    value_at_risk_95: float
+    concentration_risk: float
+    position_size_pct: float
+    capital_at_risk: float
+    kill_switch_reasons: list[str] = field(default_factory=list)
+    rationale: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class DecisionPacket:
+    instrument: str
+    action: str
+    confidence: float
+    score: float
+    thesis: str
+    entry_zone: str
+    stop_loss: str
+    take_profit: str
+    max_holding_period: str
+    position_size_pct: float
+    capital_at_risk: float
+    kill_switch_reasons: list[str] = field(default_factory=list)

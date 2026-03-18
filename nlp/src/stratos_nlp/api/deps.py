@@ -1,11 +1,9 @@
 """NLP service dependency injection."""
 
-from stratos_nlp.adapters import (
-    FinBERTScorer,
-    InMemoryRetriever,
-    SentenceTransformerEmbedder,
-    SpacyExtractor,
-)
+from __future__ import annotations
+
+from functools import lru_cache
+
 from stratos_nlp.application import (
     AnalyzeSentimentUseCase,
     ExtractEntitiesUseCase,
@@ -13,35 +11,54 @@ from stratos_nlp.application import (
     RetrieveContextUseCase,
 )
 
-# ── Singletons ─────────────────────────────────────────────────────
 
-_scorer = FinBERTScorer()
-_extractor = SpacyExtractor()
-_embedder = SentenceTransformerEmbedder()
-_retriever = InMemoryRetriever(embedder=_embedder)  # Uses embedder for internal embedding if needed
+@lru_cache
+def _get_scorer():
+    from stratos_nlp.adapters.sentiment.finbert import FinBERTScorer
+
+    return FinBERTScorer()
 
 
-# ── Dependency Factories ───────────────────────────────────────────
+@lru_cache
+def _get_extractor():
+    from stratos_nlp.adapters.extraction.spacy_ner import SpacyExtractor
+
+    return SpacyExtractor()
+
+
+@lru_cache
+def _get_embedder():
+    from stratos_nlp.adapters.embeddings.sbert import SentenceTransformerEmbedder
+
+    return SentenceTransformerEmbedder()
+
+
+@lru_cache
+def _get_retriever():
+    from stratos_nlp.adapters.rag.memory_store import InMemoryRetriever
+
+    return InMemoryRetriever(embedder=_get_embedder())
+
 
 def get_sentiment_analyzer() -> AnalyzeSentimentUseCase:
-    return AnalyzeSentimentUseCase(scorer=_scorer)
+    return AnalyzeSentimentUseCase(scorer=_get_scorer())
 
 
 def get_entity_extractor() -> ExtractEntitiesUseCase:
-    return ExtractEntitiesUseCase(extractor=_extractor)
+    return ExtractEntitiesUseCase(extractor=_get_extractor())
 
 
 def get_document_indexer() -> IndexDocumentUseCase:
     return IndexDocumentUseCase(
-        embedder=_embedder,
-        retriever=_retriever,
-        extractor=_extractor,
-        scorer=_scorer,
+        embedder=_get_embedder(),
+        retriever=_get_retriever(),
+        extractor=_get_extractor(),
+        scorer=_get_scorer(),
     )
 
 
 def get_context_retriever() -> RetrieveContextUseCase:
     return RetrieveContextUseCase(
-        embedder=_embedder,
-        retriever=_retriever,
+        embedder=_get_embedder(),
+        retriever=_get_retriever(),
     )

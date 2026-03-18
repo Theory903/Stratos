@@ -4,6 +4,7 @@ import Link from "next/link"
 import { startTransition, useEffect, useMemo, useRef, useState } from "react"
 import { ArrowRight, Command, LogOut, Search, Sparkles } from "lucide-react"
 
+import { DEMO_MODE_ENABLED } from "@/lib/runtime-flags"
 import { cn } from "@/lib/utils"
 
 type QuickAction = {
@@ -46,12 +47,6 @@ export function HomepageTopNav({
               detail: "Create a real STRATOS workspace and continue to onboarding.",
               href: "/auth/signin?return_url=/onboarding/workspace",
             },
-        {
-          id: "demo",
-          label: "Try sample workspace",
-          detail: "Open the PM demo workspace with sample portfolio data.",
-          href: "/api/demo",
-        },
         authenticated
           ? {
               id: "logout",
@@ -84,6 +79,15 @@ export function HomepageTopNav({
           onSelect: () => document.getElementById("roles")?.scrollIntoView({ behavior: "smooth", block: "start" }),
         },
       ]
+
+      if (DEMO_MODE_ENABLED) {
+        base.splice(1, 0, {
+          id: "demo",
+          label: "Try sample workspace",
+          detail: "Open the PM demo workspace with sample portfolio data.",
+          href: "/api/demo",
+        })
+      }
 
       return base
     },
@@ -233,14 +237,20 @@ export function HomepageTopNav({
                   }
                 }}
                 className="w-full bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
-                placeholder={authenticated ? "Open workspace, log out, or jump to a section" : "Jump to workspace setup, demo, or a section on this page"}
+                placeholder={
+                  authenticated
+                    ? "Open workspace, log out, or jump to a section"
+                    : DEMO_MODE_ENABLED
+                      ? "Jump to workspace setup, demo, or a section on this page"
+                      : "Jump to workspace setup or a section on this page"
+                }
               />
             </div>
 
             <div className="max-h-[60svh] overflow-y-auto p-2">
               {filteredActions.length === 0 ? (
                 <div className="rounded-2xl px-3 py-5 text-sm text-slate-500">
-                  No matching actions. Try “demo”, “start”, “roles”, or “pulse”.
+                  No matching actions. Try “start”, “roles”, or “pulse”.
                 </div>
               ) : (
                 filteredActions.map((action, index) => {
